@@ -2,11 +2,11 @@ import React from 'react';
 import { View, StyleSheet, ViewProps } from 'react-native';
 import { Typography } from './Typography';
 import { colors } from '../theme/colors';
-import { rounded, spacing } from '../theme/spacing';
+import { rounded } from '../theme/spacing';
 
 interface BadgeProps extends ViewProps {
   label: string;
-  variant?: 'default' | 'success' | 'outline' | 'ai';
+  variant?: 'default' | 'success' | 'outline' | 'ai' | 'neutral';
   icon?: React.ReactNode;
 }
 
@@ -54,6 +54,9 @@ const styles = StyleSheet.create({
   },
   success: {
     backgroundColor: colors.badgeBackground,
+  },
+  neutral: {
+    backgroundColor: colors.surfaceContainerLow,
   },
   outline: {
     borderWidth: 1,

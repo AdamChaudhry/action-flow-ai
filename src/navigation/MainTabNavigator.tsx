@@ -3,11 +3,41 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { LayoutGrid, LineChart, ListChecks, Clock } from 'lucide-react-native';
 import { DashboardScreen } from '../screens/DashboardScreen';
 import { AnalyzeScreen } from '../screens/AnalyzeScreen';
+import { ProcessingScreen } from '../screens/ProcessingScreen';
 import { ActionsScreen } from '../screens/ActionsScreen';
 import { HistoryScreen } from '../screens/HistoryScreen';
 import { colors } from '../theme/colors';
 
-const Tab = createBottomTabNavigator();
+interface TabBarIconProps {
+  color: string;
+  size: number;
+}
+
+export type MainTabParamList = {
+  Dashboard: undefined;
+  Analyze: undefined;
+  Processing: { jobId?: string };
+  Actions: undefined;
+  History: undefined;
+};
+
+const Tab = createBottomTabNavigator<MainTabParamList>();
+
+const renderDashboardIcon = ({ color, size }: TabBarIconProps) => (
+  <LayoutGrid color={color} size={size} />
+);
+
+const renderAnalyzeIcon = ({ color, size }: TabBarIconProps) => (
+  <LineChart color={color} size={size} />
+);
+
+const renderActionsIcon = ({ color, size }: TabBarIconProps) => (
+  <ListChecks color={color} size={size} />
+);
+
+const renderHistoryIcon = ({ color, size }: TabBarIconProps) => (
+  <Clock color={color} size={size} />
+);
 
 export const MainTabNavigator = () => {
   return (
@@ -37,34 +67,36 @@ export const MainTabNavigator = () => {
         name="Dashboard"
         component={DashboardScreen}
         options={{
-          tabBarIcon: ({ color, size }) => (
-            <LayoutGrid color={color} size={size} />
-          ),
+          tabBarIcon: renderDashboardIcon,
         }}
       />
       <Tab.Screen
         name="Analyze"
         component={AnalyzeScreen}
         options={{
-          tabBarIcon: ({ color, size }) => (
-            <LineChart color={color} size={size} />
-          ),
+          tabBarIcon: renderAnalyzeIcon,
+        }}
+      />
+      <Tab.Screen
+        name="Processing"
+        component={ProcessingScreen}
+        options={{
+          tabBarIcon: renderAnalyzeIcon,
+          tabBarLabel: 'Processing',
         }}
       />
       <Tab.Screen
         name="Actions"
         component={ActionsScreen}
         options={{
-          tabBarIcon: ({ color, size }) => (
-            <ListChecks color={color} size={size} />
-          ),
+          tabBarIcon: renderActionsIcon,
         }}
       />
       <Tab.Screen
         name="History"
         component={HistoryScreen}
         options={{
-          tabBarIcon: ({ color, size }) => <Clock color={color} size={size} />,
+          tabBarIcon: renderHistoryIcon,
         }}
       />
     </Tab.Navigator>
