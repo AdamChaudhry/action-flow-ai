@@ -1,12 +1,6 @@
----
-trigger: always_on
----
-
 # WebSocket Reference
 
 **WebSocket URL:** `ws://localhost:3000`
-
-ActionFlow AI uses WebSockets for real-time streaming of workflow progress. Once you submit a job via the REST API, subscribe to its events to receive live updates as the LangGraph workflow executes.
 
 ---
 
@@ -16,13 +10,11 @@ ActionFlow AI uses WebSockets for real-time streaming of workflow progress. Once
 ws://localhost:3000
 ```
 
-No authentication is required to open the WebSocket connection. Authorization is scoped by `jobId` at the subscription level.
+No authentication required to open the connection.
 
 ---
 
 ## Subscribing to a Job
-
-After connecting, send a subscribe message:
 
 ```json
 {
@@ -33,20 +25,14 @@ After connecting, send a subscribe message:
 }
 ```
 
-You will then receive all events for that job until it reaches a terminal state (`analysis_completed`, `analysis_failed`, or `analysis_needs_clarification`).
-
-> Multiple clients can subscribe to the same `jobId` simultaneously.
-
 ---
 
 ## Message Envelope
 
-Every event from the server follows this shape:
-
 ```json
 {
   "type": "<event_type>",
-  "jobId": "3f7a2c91-4b1e-4d8f-9e3a-1c2d3e4f5a6b",
+  "jobId": "3f7a2c91-...",
   "payload": { ... }
 }
 ```
@@ -55,215 +41,234 @@ Every event from the server follows this shape:
 
 ## Event Reference
 
-### LangGraph Workflow Events (Primary)
+### `job_started`
 
-These are emitted by the new LangGraph orchestrator and provide granular visibility into each planner decision and step execution.
-
----
-
-#### `planner_decision`
-
-Emitted each time the **Planner** decides the next workflow step.
+Emitted by **Node 1 — IngestInputNode** after validation passes.
 
 ```json
 {
-  "type": "planner_decision",
+  "type": "job_started",
   "jobId": "...",
   "payload": {
-    "nextStep": "extract_insights",
-    "reasoning": "Content understanding is complete. Moving to insight extraction.",
-    "iterationCount": 2
+    "jobId": "...",
+    "inputType": "text",
+    "inputSource": "zendesk"
   }
 }
 ```
 
 | Field | Type | Description |
 |---|---|---|
-| `nextStep` | `PlannerNextStep` | The step the planner has chosen to run next |
-| `reasoning` | `string` | LLM-generated explanation of the routing decision |
-| `iterationCount` | `number` | Graph iteration count when this decision was made |
-
-**`nextStep` possible values:**
-
-| Value | Description |
-|---|---|
-| `content_understanding` | Run content understanding step |
-| `extract_insights` | Run insight extraction step |
-| `analyze_implications` | Run implication analysis step |
-| `recommend_actions` | Run action recommendation step |
-| `select_action` | Run action selection step |
-| `simulate_action` | Run action simulation step |
-| `generate_outcome` | Run outcome generation step |
-| `ask_clarification` | Request user clarification |
-| `complete` | Mark the workflow as complete |
-| `fail` | Terminate the workflow as failed |
+| `inputType` | `string` | The content input type |
+| `inputSource` | `string \| undefined` | Where the content originated |
 
 ---
 
-#### `step_started`
+### `content_normalized`
 
-Emitted immediately before each workflow step begins executing.
+Emitted by **Node 2 — NormalizeContentNode** after cleaning the input.
 
 ```json
 {
-  "type": "step_started",
+  "type": "content_normalized",
   "jobId": "...",
   "payload": {
-    "step": "extract_insights"
+    "normalizedLength": 1842
   }
 }
 ```
 
 | Field | Type | Description |
 |---|---|---|
-| `step` | `string` | Name of the step starting execution |
+| `normalizedLength` | `number` | Character count of the cleaned content (not the raw text) |
 
 ---
 
-#### `step_completed`
+### `node_started`
 
-Emitted immediately after a workflow step finishes successfully.
+Emitted by **Node 3 — ContentToActionNode** before the LLM call begins.
 
 ```json
 {
-  "type": "step_completed",
+  "type": "node_started",
   "jobId": "...",
   "payload": {
-    "step": "extract_insights",
-    "output": [ ... ]
+    "node": "ContentToActionNode"
+  }
+}
+```
+
+---
+
+### `content_analyzed` ⭐
+
+Emitted by **Node 3 — ContentToActionNode** after the single LLM call completes.  
+This is the most important event — it means all AI work is done.
+
+```json
+{
+  "type": "content_analyzed",
+  "jobId": "...",
+  "payload": {
+    "insightCount": 3,
+    "implicationCount": 3,
+    "actionCount": 4
   }
 }
 ```
 
 | Field | Type | Description |
 |---|---|---|
-| `step` | `string` | Name of the completed step |
-| `output` | `unknown` | The raw output produced by this step (structured object) |
+| `insightCount` | `number` | Number of insights extracted |
+| `implicationCount` | `number` | Number of implications analyzed |
+| `actionCount` | `number` | Number of recommended actions generated |
 
 ---
 
-#### `step_evaluated`
+### `actions_routed`
 
-Emitted after the **Evaluator** reviews the latest step output.
+Emitted by **Node 4 — DecisionRouterNode** after splitting actions by approval requirement.
 
 ```json
 {
-  "type": "step_evaluated",
+  "type": "actions_routed",
   "jobId": "...",
   "payload": {
-    "step": "extract_insights",
-    "verdict": "pass",
-    "reason": "Insights are well-structured with clear evidence and categories."
+    "requiresApprovalCount": 2,
+    "autoExecuteCount": 2
   }
 }
 ```
 
 | Field | Type | Description |
 |---|---|---|
-| `step` | `string` | The step that was evaluated |
-| `verdict` | `EvaluatorVerdict` | Evaluation outcome — see values below |
-| `reason` | `string` | LLM-generated explanation of the verdict |
-
-**`verdict` values:**
-
-| Value | Meaning | Next Action |
-|---|---|---|
-| `pass` | Output quality is acceptable | Planner decides the next step |
-| `retry` | Output has minor fixable issues | Same step runs again (max 1 retry) |
-| `needs_clarification` | Input is too ambiguous to proceed | `analysis_needs_clarification` event emitted |
-| `fail` | Output is fundamentally broken | `analysis_failed` event emitted |
+| `requiresApprovalCount` | `number` | Actions that require human approval |
+| `autoExecuteCount` | `number` | Actions safe to execute automatically |
 
 ---
 
-#### `analysis_needs_clarification`
+### `simulation_ready`
 
-Emitted when the workflow is **paused** waiting for user input. The job status is set to `waiting_for_user`.
+Emitted by **Node 5 — SimulationNode** with projected outcomes for auto-executable actions.
 
 ```json
 {
-  "type": "analysis_needs_clarification",
+  "type": "simulation_ready",
   "jobId": "...",
   "payload": {
-    "question": "The content references multiple business units but does not specify which is the primary focus. Please clarify which unit this analysis should prioritize."
+    "simulations": [
+      {
+        "actionId": "action_1",
+        "actionTitle": "Create internal task",
+        "actionType": "assign_task",
+        "parameters": { "assignee": "engineering", "priority": "high" },
+        "projectedOutcome": "A task will be created and assigned to the responsible team for resolution.",
+        "estimatedRisk": "low",
+        "requiresHumanApproval": false
+      }
+    ]
   }
 }
 ```
 
-| Field | Type | Description |
-|---|---|---|
-| `question` | `string` | The clarification question generated by the workflow |
-
-> After receiving this event, the client should surface the question to the user. The user's answer can be submitted as a new analysis job.
-
 ---
 
-#### `analysis_completed` ✅ Terminal
+### `awaiting_approval`
 
-Emitted when the workflow finishes all steps successfully.
+Emitted by **Node 6 — ApprovalOrExecutionNode** when one or more actions require human review.  
+Job status is set to `waiting_for_user`.
 
 ```json
 {
-  "type": "analysis_completed",
+  "type": "awaiting_approval",
   "jobId": "...",
   "payload": {
-    "data": {
-      "executiveSummary": "...",
-      "finalRecommendation": "...",
-      "decisionConfidence": 0.87,
-      ...
+    "pendingApprovals": [
+      {
+        "actionId": "action_2",
+        "actionTitle": "Send churn alert to enterprise customers",
+        "actionType": "notify",
+        "parameters": { "channel": "email", "segment": "enterprise" },
+        "status": "pending",
+        "requestedAt": "2026-05-17T04:01:20.000Z"
+      }
+    ]
+  }
+}
+```
+
+---
+
+### `actions_queued`
+
+Emitted by **Node 6 — ApprovalOrExecutionNode** when auto-executable actions are queued.
+
+```json
+{
+  "type": "actions_queued",
+  "jobId": "...",
+  "payload": {
+    "executedActions": [
+      {
+        "actionId": "action_1",
+        "actionTitle": "Create engineering ticket",
+        "actionType": "create_ticket",
+        "status": "queued",
+        "executedAt": "2026-05-17T04:01:20.000Z"
+      }
+    ]
+  }
+}
+```
+
+---
+
+### `workflow_completed` ✅ Terminal
+
+Emitted by **Node 7 — OutcomeStateNode** when all nodes finish. Job status → `completed`.
+
+```json
+{
+  "type": "workflow_completed",
+  "jobId": "...",
+  "payload": {
+    "outcome": {
+      "totalInsights": 3,
+      "totalImplications": 3,
+      "totalActions": 4,
+      "actionsRequiringApproval": 2,
+      "actionsAutoQueued": 2,
+      "highPriorityActions": ["action_2", "action_3"],
+      "criticalInsights": ["insight_1"],
+      "summary": "Identified 3 insight(s) and 3 implication(s). Generated 4 recommended action(s). 2 action(s) require human approval before execution. 2 action(s) have been queued for automatic execution.",
+      "completedAt": "2026-05-17T04:01:45.000Z"
     }
   }
 }
 ```
 
-The `data` field contains the full `FinalOutcome` object. See [Data Models — FinalOutcome](./data-models.md#finaloutcome).
-
 ---
 
-#### `analysis_failed` ✅ Terminal
+### `workflow_failed` ✅ Terminal
 
-Emitted when the workflow terminates due to a critical error.
+Emitted when the workflow terminates due to an error.
 
 ```json
 {
-  "type": "analysis_failed",
+  "type": "workflow_failed",
   "jobId": "...",
   "payload": {
     "error": {
-      "code": "WORKFLOW_FAILED",
-      "message": "Step 'extract_insights' failed after maximum retries."
+      "code": "GRAPH_ERROR",
+      "message": "ContentToActionNode: normalizedContent is missing."
     }
   }
 }
 ```
 
-| Field | Type | Description |
-|---|---|---|
-| `error.code` | `string` | Machine-readable error code |
-| `error.message` | `string` | Human-readable error description |
-
-**Error codes:**
-
-| Code | Description |
+| Error Code | Cause |
 |---|---|
-| `WORKFLOW_FAILED` | A step failed after exhausting retries |
-| `GRAPH_ERROR` | Unhandled exception in the LangGraph graph |
-
----
-
-### Legacy Events (Backward Compatible)
-
-These events were emitted by the previous hardcoded pipeline. They are preserved for backward compatibility and may be emitted alongside the new events.
-
-| Event | Description |
-|---|---|
-| `analysis_started` | Workflow initialized |
-| `analysis_progress` | Step progress update with `step`, `progress`, `message` |
-| `content_understanding_ready` | Content Understanding step output |
-| `insights_ready` | Insight Extraction step output |
-| `implications_ready` | Implication Analysis step output |
-| `actions_ready` | Action Recommendation step output |
-| `simulation_ready` | Action Simulation step output |
+| `GRAPH_ERROR` | Unhandled exception in the graph engine |
 
 ---
 
@@ -272,57 +277,15 @@ These events were emitted by the previous hardcoded pipeline. They are preserved
 ```
 subscribe_analysis (client → server)
 
-planner_decision      { nextStep: "content_understanding" }
-step_started          { step: "content_understanding" }
-step_completed        { step: "content_understanding", output: {...} }
-step_evaluated        { step: "content_understanding", verdict: "pass" }
-
-planner_decision      { nextStep: "extract_insights" }
-step_started          { step: "extract_insights" }
-step_completed        { step: "extract_insights", output: [...] }
-step_evaluated        { step: "extract_insights", verdict: "pass" }
-
-planner_decision      { nextStep: "analyze_implications" }
-step_started          { step: "analyze_implications" }
-step_completed        { step: "analyze_implications", output: [...] }
-step_evaluated        { step: "analyze_implications", verdict: "pass" }
-
-planner_decision      { nextStep: "recommend_actions" }
-step_started          { step: "recommend_actions" }
-step_completed        { step: "recommend_actions", output: [...] }
-step_evaluated        { step: "recommend_actions", verdict: "pass" }
-
-planner_decision      { nextStep: "select_action" }
-step_started          { step: "select_action" }
-step_completed        { step: "select_action", output: {...} }
-step_evaluated        { step: "select_action", verdict: "pass" }
-
-planner_decision      { nextStep: "simulate_action" }
-step_started          { step: "simulate_action" }
-step_completed        { step: "simulate_action", output: {...} }
-step_evaluated        { step: "simulate_action", verdict: "pass" }
-
-planner_decision      { nextStep: "generate_outcome" }
-step_started          { step: "generate_outcome" }
-step_completed        { step: "generate_outcome", output: {...} }
-step_evaluated        { step: "generate_outcome", verdict: "pass" }
-
-planner_decision      { nextStep: "complete" }
-analysis_completed    { data: FinalOutcome }
-```
-
----
-
-## Retry Sequence Example
-
-```
-step_started          { step: "extract_insights" }
-step_completed        { step: "extract_insights", output: { ... shallow output ... } }
-step_evaluated        { step: "extract_insights", verdict: "retry", reason: "Insights lack evidence." }
-
-step_started          { step: "extract_insights" }      ← retried
-step_completed        { step: "extract_insights", output: { ... better output ... } }
-step_evaluated        { step: "extract_insights", verdict: "pass" }
+job_started            { inputType: "text", inputSource: "zendesk" }
+content_normalized     { normalizedLength: 1842 }
+node_started           { node: "ContentToActionNode" }
+content_analyzed       { insightCount: 3, implicationCount: 3, actionCount: 4 }
+actions_routed         { requiresApprovalCount: 2, autoExecuteCount: 2 }
+simulation_ready       { simulations: [...] }
+awaiting_approval      { pendingApprovals: [...] }   ← if any approvals needed
+actions_queued         { executedActions: [...] }     ← if any auto actions
+workflow_completed     { outcome: { ... } }
 ```
 
 ---
@@ -343,34 +306,45 @@ ws.onmessage = (event) => {
   const msg = JSON.parse(event.data);
 
   switch (msg.type) {
-    case 'planner_decision':
-      console.log(`Planner → ${msg.payload.nextStep}: ${msg.payload.reasoning}`);
+    case 'job_started':
+      console.log(`Job started — type: ${msg.payload.inputType}`);
       break;
 
-    case 'step_started':
-      console.log(`▶ Starting: ${msg.payload.step}`);
+    case 'content_normalized':
+      console.log(`Content ready (${msg.payload.normalizedLength} chars)`);
       break;
 
-    case 'step_completed':
-      console.log(`✓ Completed: ${msg.payload.step}`);
+    case 'node_started':
+      console.log(`▶ ${msg.payload.node} running...`);
       break;
 
-    case 'step_evaluated':
-      console.log(`Evaluator [${msg.payload.step}]: ${msg.payload.verdict} — ${msg.payload.reason}`);
+    case 'content_analyzed':
+      console.log(`✓ AI complete — ${msg.payload.insightCount} insights, ${msg.payload.actionCount} actions`);
       break;
 
-    case 'analysis_completed':
-      console.log('✅ Analysis complete:', msg.payload.data);
+    case 'actions_routed':
+      console.log(`Routing: ${msg.payload.requiresApprovalCount} need approval, ${msg.payload.autoExecuteCount} auto`);
+      break;
+
+    case 'simulation_ready':
+      console.log('Simulations:', msg.payload.simulations);
+      break;
+
+    case 'awaiting_approval':
+      console.warn('⏳ Human approval required:', msg.payload.pendingApprovals);
+      break;
+
+    case 'actions_queued':
+      console.log('✓ Auto actions queued:', msg.payload.executedActions);
+      break;
+
+    case 'workflow_completed':
+      console.log('✅ Done:', msg.payload.outcome.summary);
       ws.close();
       break;
 
-    case 'analysis_failed':
-      console.error('❌ Analysis failed:', msg.payload.error.message);
-      ws.close();
-      break;
-
-    case 'analysis_needs_clarification':
-      console.warn('❓ Clarification needed:', msg.payload.question);
+    case 'workflow_failed':
+      console.error('❌ Failed:', msg.payload.error.message);
       ws.close();
       break;
   }

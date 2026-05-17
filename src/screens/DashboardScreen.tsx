@@ -20,7 +20,7 @@ export const DashboardScreen: React.FC = () => {
   const navigation = useNavigation<DashboardNavigationProp>();
 
   const navigateToAnalyze = useCallback(() => {
-    navigation.navigate('Analyze');
+    navigation.jumpTo('Analyze');
   }, [navigation]);
 
   const navigateToHistory = useCallback(() => {

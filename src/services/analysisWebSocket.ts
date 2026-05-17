@@ -1,10 +1,8 @@
 import { WS_BASE_URL } from '../constants/config';
-import type { WsMessage, WsEventType } from '../types/analysis';
+import type { WsEventType, WsMessage } from '../types/analysis';
 
 type MessageHandler = (msg: WsMessage) => void;
 type ErrorHandler = () => void;
-
-// ─── WebSocket Client ─────────────────────────────────────────────────────────
 
 /**
  * Manages the WebSocket connection for a single analysis job.
@@ -13,9 +11,8 @@ type ErrorHandler = () => void;
 export class AnalysisWebSocketClient {
   private ws: WebSocket | null = null;
   private readonly terminalEvents: WsEventType[] = [
-    'analysis_completed',
-    'analysis_failed',
-    'analysis_needs_clarification',
+    'workflow_completed',
+    'workflow_failed',
   ];
 
   connect(
@@ -38,17 +35,16 @@ export class AnalysisWebSocketClient {
       );
     };
 
-    this.ws.onmessage = (event) => {
+    this.ws.onmessage = event => {
       try {
         const msg = JSON.parse(event.data as string) as WsMessage;
         onMessage(msg);
 
-        // Auto-close on terminal events
         if (this.terminalEvents.includes(msg.type)) {
           this.disconnect();
         }
       } catch {
-        // Ignore malformed frames
+        // Ignore malformed frames.
       }
     };
 

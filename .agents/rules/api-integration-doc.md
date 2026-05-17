@@ -1,11 +1,6 @@
----
-trigger: always_on
----
-
 # REST API Reference
 
-**Base URL:** `http://localhost:3000`  
-**Content-Type:** `application/json` (except file upload endpoints)
+**Base URL:** `http://localhost:3000`
 
 ---
 
@@ -15,20 +10,14 @@ trigger: always_on
 |---|---|---|---|
 | `GET` | `/health` | None | Server health check |
 | `POST` | `/api/analysis-jobs` | ✅ | Submit content for analysis |
-| `GET` | `/api/analysis-jobs/:jobId` | ✅ | Get job status and progress |
+| `GET` | `/api/analysis-jobs/:jobId` | ✅ | Get job status and active node |
 | `GET` | `/api/analysis-jobs/:jobId/result` | ✅ | Get full analysis result |
 
 ---
 
 ## GET /health
 
-Returns server status. No authentication required.
-
-### Request
-
-```
-GET /health
-```
+No authentication required.
 
 ### Response `200 OK`
 
@@ -43,17 +32,11 @@ GET /health
 }
 ```
 
-| Field | Type | Description |
-|---|---|---|
-| `status` | `string` | Always `"ok"` when healthy |
-| `version` | `string` | Application version |
-| `uptime` | `number` | Server uptime in seconds |
-
 ---
 
 ## POST /api/analysis-jobs
 
-Submit content for analysis. Returns a `jobId` immediately. The LangGraph workflow runs asynchronously in the background.
+Submit content for analysis. Returns a `jobId` immediately. The 7-node LangGraph workflow runs asynchronously in the background.
 
 ### Request
 
@@ -64,23 +47,21 @@ Submit content for analysis. Returns a `jobId` immediately. The LangGraph workfl
 |---|---|---|---|
 | `content` | `string` | Conditional* | Plain text content to analyze |
 | `file` | `File` | Conditional* | PDF or image file (max **20 MB**) |
-| `inputType` | `string` | Optional | One of: `text`, `pdf`, `image`, `dashboard_screenshot`, `mixed`. Auto-detected if omitted. |
-| `title` | `string` | Optional | Human-readable label for this analysis job |
-| `simulationSettings` | `string` | Optional | JSON string with simulation preferences (see below) |
+| `inputType` | `string` | Optional | `text` \| `pdf` \| `image` \| `dashboard_screenshot` \| `mixed` |
+| `title` | `string` | Optional | Human-readable label for this job |
+| `inputSource` | `string` | Optional | Where the content came from (e.g. `"customer_feedback_portal"`, `"slack"`) |
+| `businessContext` | `string` | Optional | Context about your business to improve LLM output (e.g. `"B2B SaaS platform for SMEs"`) |
+| `simulationSettings` | `string` | Optional | JSON string — see below |
 
 > **\*** At least one of `content` or `file` must be provided.
 
-#### `simulationSettings` Object
+#### `simulationSettings` (JSON string)
 
 ```json
 {
-  "preferredActionId": "action-id-from-previous-result"
+  "preferredActionId": "action_1"
 }
 ```
-
-| Field | Type | Description |
-|---|---|---|
-| `preferredActionId` | `string` | ID of a specific `RecommendedAction` to simulate. If omitted, the Planner selects automatically. |
 
 ### Response `201 Created`
 
@@ -93,46 +74,28 @@ Submit content for analysis. Returns a `jobId` immediately. The LangGraph workfl
 }
 ```
 
-The analysis workflow starts **immediately** in the background. Use the returned `jobId` to poll status or subscribe via WebSocket.
-
 ### Examples
 
-#### Text-only analysis
+#### Text analysis with business context
 
 ```bash
 curl -X POST http://localhost:3000/api/analysis-jobs \
   -H "x-user-id: user-123" \
-  -F "content=Q3 revenue dropped 12% due to churn in the enterprise segment." \
-  -F "title=Q3 Revenue Analysis"
+  -F "content=Support ticket volume increased 40% this month. Top complaint: checkout failures on mobile." \
+  -F "title=Monthly Support Spike" \
+  -F "inputSource=zendesk" \
+  -F "businessContext=E-commerce SaaS platform, 50k monthly active users"
 ```
 
-#### File upload (PDF)
+#### File upload
 
 ```bash
 curl -X POST http://localhost:3000/api/analysis-jobs \
   -H "x-user-id: user-123" \
   -F "file=@/path/to/report.pdf" \
   -F "inputType=pdf" \
-  -F "title=Board Report"
-```
-
-#### Mixed text + file
-
-```bash
-curl -X POST http://localhost:3000/api/analysis-jobs \
-  -H "x-user-id: user-123" \
-  -F "content=Additional context: focus on APAC region." \
-  -F "file=@/path/to/dashboard.png" \
-  -F "inputType=mixed"
-```
-
-#### With simulation preference
-
-```bash
-curl -X POST http://localhost:3000/api/analysis-jobs \
-  -H "x-user-id: user-123" \
-  -F "content=Support ticket volume increased 40% this month." \
-  -F 'simulationSettings={"preferredActionId":"action-001"}'
+  -F "title=Board Report" \
+  -F "businessContext=Healthcare logistics company"
 ```
 
 ### Error Responses
@@ -148,14 +111,7 @@ curl -X POST http://localhost:3000/api/analysis-jobs \
 
 ## GET /api/analysis-jobs/:jobId
 
-Returns the current status and progress of an analysis job.
-
-### Request
-
-```
-GET /api/analysis-jobs/3f7a2c91-4b1e-4d8f-9e3a-1c2d3e4f5a6b
-x-user-id: user-123
-```
+Returns the current status and active node of a job.
 
 ### Response `200 OK`
 
@@ -165,70 +121,52 @@ x-user-id: user-123
   "data": {
     "id": "3f7a2c91-4b1e-4d8f-9e3a-1c2d3e4f5a6b",
     "status": "processing",
-    "currentStep": "insight_extraction",
-    "progress": 30,
+    "currentNode": "ContentToActionNode",
+    "progress": 40,
     "inputType": "text",
-    "title": "Q3 Revenue Analysis",
+    "title": "Monthly Support Spike",
     "error": null,
-    "createdAt": "2026-05-16T14:00:00.000Z",
-    "updatedAt": "2026-05-16T14:00:08.123Z"
+    "clarificationQuestion": null,
+    "createdAt": "2026-05-17T04:00:00.000Z",
+    "updatedAt": "2026-05-17T04:00:08.123Z"
   }
 }
 ```
 
 | Field | Type | Description |
 |---|---|---|
-| `id` | `string` | Unique job identifier (UUID) |
-| `status` | `string` | See [Job Status Values](#job-status-values) |
-| `currentStep` | `string \| null` | The workflow step currently executing |
-| `progress` | `number` | Overall progress percentage `0–100` |
-| `inputType` | `string` | Detected or specified input type |
-| `title` | `string \| null` | Optional job title |
-| `error` | `string \| null` | Error message if `status = "failed"` |
-| `createdAt` | `string` | ISO 8601 creation timestamp |
-| `updatedAt` | `string` | ISO 8601 last update timestamp |
+| `status` | `string` | See [Job Status](#job-status-values) |
+| `currentNode` | `string \| null` | The graph node currently executing |
+| `progress` | `number` | Overall progress `0–100` |
+| `clarificationQuestion` | `string \| null` | Set when `status = "waiting_for_user"` |
 
 #### Job Status Values
 
 | Status | Description |
 |---|---|
-| `queued` | Job created, workflow not yet started |
-| `processing` | LangGraph workflow is actively running |
-| `completed` | All steps finished successfully |
+| `queued` | Job created, not yet started |
+| `processing` | Workflow running |
+| `completed` | All nodes finished |
 | `failed` | Workflow terminated with an error |
-| `waiting_for_user` | Workflow paused, awaiting user clarification |
+| `waiting_for_user` | Actions pending human approval |
 
-#### Workflow Step Values
+#### Node Progress Map
 
-| Step | Description | Progress % |
+| Node | `currentNode` | Progress % |
 |---|---|---|
-| `content_understanding` | Classifying and contextualizing input | ~15% |
-| `insight_extraction` | Extracting facts, risks, and opportunities | ~30% |
-| `implication_analysis` | Mapping business impacts of insights | ~50% |
-| `action_recommendation` | Generating specific recommended actions | ~70% |
-| `action_simulation` | Simulating execution of the selected action | ~85% |
-| `outcome_generation` | Producing final outcome and executive summary | ~100% |
-
-### Error Responses
-
-| Status | Code | Cause |
-|---|---|---|
-| `401` | `UNAUTHORIZED` | Missing `x-user-id` header |
-| `404` | `NOT_FOUND` | No job found with that `jobId` |
-| `500` | `INTERNAL_ERROR` | Unexpected server error |
+| Node 1 | `IngestInputNode` | 10% |
+| Node 2 | `NormalizeContentNode` | 20% |
+| Node 3 | `ContentToActionNode` | 40% |
+| Node 4 | `DecisionRouterNode` | 55% |
+| Node 5 | `SimulationNode` | 70% |
+| Node 6 | `ApprovalOrExecutionNode` | 85% |
+| Node 7 | `OutcomeStateNode` | 95% → 100% |
 
 ---
 
 ## GET /api/analysis-jobs/:jobId/result
 
-Returns the full structured analysis result. Only meaningful when `status = "completed"`.
-
-### Request
-
-```
-GET /api/analysis-jobs/3f7a2c91-4b1e-4d8f-9e3a-1c2d3e4f5a6b/result
-x-user-id: user-123
-```
+Returns the full structured analysis result.
 
 ### Response `200 OK`
 
@@ -236,21 +174,22 @@ x-user-id: user-123
 {
   "success": true,
   "data": {
-    "jobId": "3f7a2c91-4b1e-4d8f-9e3a-1c2d3e4f5a6b",
-    "contentUnderstanding": { ... },
+    "jobId": "3f7a2c91-...",
     "insights": [ ... ],
     "implications": [ ... ],
     "recommendedActions": [ ... ],
-    "simulation": { ... },
+    "simulations": [ ... ],
+    "pendingApprovals": [ ... ],
+    "executedActions": [ ... ],
     "outcome": { ... },
-    "updatedAt": "2026-05-16T14:01:45.000Z"
+    "updatedAt": "2026-05-17T04:01:45.000Z"
   }
 }
 ```
 
 All nested objects are documented in [Data Models](./data-models.md).
 
-> **Note:** Fields are populated progressively as the workflow runs. A result document may exist with only `contentUnderstanding` populated if the job is still processing. The full result is available when `status = "completed"`.
+> Fields populate progressively. `insights`, `implications`, and `recommendedActions` are set after Node 3. `simulations`, `pendingApprovals`, `executedActions` after Nodes 5–6. `outcome` after Node 7.
 
 ### Error Responses
 

@@ -2,10 +2,9 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { LayoutGrid, LineChart, ListChecks, Clock } from 'lucide-react-native';
 import { DashboardScreen } from '../screens/DashboardScreen';
-import { AnalyzeScreen } from '../screens/AnalyzeScreen';
-import { ProcessingScreen } from '../screens/ProcessingScreen';
 import { ActionsScreen } from '../screens/ActionsScreen';
 import { HistoryScreen } from '../screens/HistoryScreen';
+import { AnalyzeStackNavigator } from './AnalyzeStackNavigator';
 import { colors } from '../theme/colors';
 
 interface TabBarIconProps {
@@ -16,7 +15,6 @@ interface TabBarIconProps {
 export type MainTabParamList = {
   Dashboard: undefined;
   Analyze: undefined;
-  Processing: { jobId?: string };
   Actions: undefined;
   History: undefined;
 };
@@ -66,38 +64,22 @@ export const MainTabNavigator = () => {
       <Tab.Screen
         name="Dashboard"
         component={DashboardScreen}
-        options={{
-          tabBarIcon: renderDashboardIcon,
-        }}
+        options={{ tabBarIcon: renderDashboardIcon }}
       />
       <Tab.Screen
         name="Analyze"
-        component={AnalyzeScreen}
-        options={{
-          tabBarIcon: renderAnalyzeIcon,
-        }}
-      />
-      <Tab.Screen
-        name="Processing"
-        component={ProcessingScreen}
-        options={{
-          tabBarIcon: renderAnalyzeIcon,
-          tabBarLabel: 'Processing',
-        }}
+        component={AnalyzeStackNavigator}
+        options={{ tabBarIcon: renderAnalyzeIcon }}
       />
       <Tab.Screen
         name="Actions"
         component={ActionsScreen}
-        options={{
-          tabBarIcon: renderActionsIcon,
-        }}
+        options={{ tabBarIcon: renderActionsIcon }}
       />
       <Tab.Screen
         name="History"
         component={HistoryScreen}
-        options={{
-          tabBarIcon: renderHistoryIcon,
-        }}
+        options={{ tabBarIcon: renderHistoryIcon }}
       />
     </Tab.Navigator>
   );

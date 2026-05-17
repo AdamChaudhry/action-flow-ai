@@ -1,27 +1,39 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { getAnalysisJob } from '../services/analysisApi';
 import { AnalysisWebSocketClient } from '../services/analysisWebSocket';
-import type { WsMessage, StepStartedPayload, AnalysisFailedPayload } from '../types/analysis';
+import type {
+  AnalysisJob,
+  ActionsQueuedPayload,
+  ActionsRoutedPayload,
+  AwaitingApprovalPayload,
+  ContentAnalyzedPayload,
+  ContentNormalizedPayload,
+  JobStartedPayload,
+  NodeStartedPayload,
+  SimulationReadyPayload,
+  WorkflowFailedPayload,
+  WsMessage,
+} from '../types/analysis';
 
-// ─── Step mapping ─────────────────────────────────────────────────────────────
-// Maps WS step names → display step index (0-based)
-
-const STEP_INDEX_MAP: Record<string, number> = {
-  // LangGraph step names
-  content_understanding: 0,
-  extract_insights: 1,
-  insight_extraction: 1,
-  analyze_implications: 2,
-  implication_analysis: 2,
-  recommend_actions: 3,
-  action_recommendation: 3,
-  select_action: 3,
-  simulate_action: 4,
-  action_simulation: 4,
-  generate_outcome: 5,
-  outcome_generation: 5,
+const NODE_INDEX_MAP: Record<string, number> = {
+  IngestInputNode: 0,
+  NormalizeContentNode: 1,
+  ContentToActionNode: 2,
+  DecisionRouterNode: 3,
+  SimulationNode: 4,
+  ApprovalOrExecutionNode: 5,
+  OutcomeStateNode: 6,
 };
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+const NODE_PROGRESS_MAP: Record<string, number> = {
+  IngestInputNode: 10,
+  NormalizeContentNode: 20,
+  ContentToActionNode: 40,
+  DecisionRouterNode: 55,
+  SimulationNode: 70,
+  ApprovalOrExecutionNode: 85,
+  OutcomeStateNode: 95,
+};
 
 export type StepStatus = 'completed' | 'active' | 'pending';
 
@@ -32,20 +44,52 @@ export interface WorkflowStep {
   status: StepStatus;
 }
 
-type JobState = 'processing' | 'completed' | 'failed' | 'clarification_needed';
-
-// ─── Initial steps ─────────────────────────────────────────────────────────────
+type JobState = 'processing' | 'completed' | 'failed' | 'waiting_for_user';
 
 const INITIAL_STEPS: WorkflowStep[] = [
-  { id: '1', label: 'Reading content',               subLabel: 'Classifying and contextualizing', status: 'pending' },
-  { id: '2', label: 'Extracting key insights',        subLabel: 'Facts, risks, opportunities',      status: 'pending' },
-  { id: '3', label: 'Analyzing implications',         subLabel: 'Mapping business impact',          status: 'pending' },
-  { id: '4', label: 'Generating recommended actions', subLabel: 'Specific, executable actions',     status: 'pending' },
-  { id: '5', label: 'Simulating action execution',    subLabel: 'Before & after scenario',          status: 'pending' },
-  { id: '6', label: 'Producing final outcome',        subLabel: 'Executive summary & confidence',   status: 'pending' },
+  {
+    id: 'ingest',
+    label: 'Reading content',
+    subLabel: 'Validating and detecting input type',
+    status: 'pending',
+  },
+  {
+    id: 'normalize',
+    label: 'Normalizing content',
+    subLabel: 'Cleaning and preparing the source',
+    status: 'pending',
+  },
+  {
+    id: 'analyze',
+    label: 'Extracting insights and actions',
+    subLabel: 'Insights, implications, recommendations',
+    status: 'pending',
+  },
+  {
+    id: 'route',
+    label: 'Routing recommended actions',
+    subLabel: 'Separating approvals from automatic actions',
+    status: 'pending',
+  },
+  {
+    id: 'simulate',
+    label: 'Simulating outcomes',
+    subLabel: 'Projecting impact and risk',
+    status: 'pending',
+  },
+  {
+    id: 'approve',
+    label: 'Preparing execution',
+    subLabel: 'Queueing actions and approvals',
+    status: 'pending',
+  },
+  {
+    id: 'outcome',
+    label: 'Producing final outcome',
+    subLabel: 'Summary and final workflow state',
+    status: 'pending',
+  },
 ];
-
-// ─── Hook ─────────────────────────────────────────────────────────────────────
 
 interface UseAnalysisJobResult {
   steps: WorkflowStep[];
@@ -61,79 +105,176 @@ export function useAnalysisJob(jobId: string | undefined): UseAnalysisJobResult 
   const [progress, setProgress] = useState(0);
   const [jobState, setJobState] = useState<JobState>('processing');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [clarificationQuestion, setClarificationQuestion] = useState<string | null>(null);
+  const [clarificationQuestion, setClarificationQuestion] = useState<
+    string | null
+  >(null);
 
   const clientRef = useRef(new AnalysisWebSocketClient());
 
   const markStepActive = useCallback((stepIndex: number) => {
     setSteps(prev =>
-      prev.map((s, i) => {
-        if (i < stepIndex)  { return { ...s, status: 'completed' }; }
-        if (i === stepIndex) { return { ...s, status: 'active' }; }
-        return { ...s, status: 'pending' };
+      prev.map((step, index) => {
+        if (index < stepIndex) {
+          return { ...step, status: 'completed' };
+        }
+        if (index === stepIndex) {
+          return { ...step, status: 'active' };
+        }
+        return { ...step, status: 'pending' };
       }),
     );
   }, []);
 
   const markStepCompleted = useCallback((stepIndex: number) => {
     setSteps(prev =>
-      prev.map((s, i) => (i <= stepIndex ? { ...s, status: 'completed' } : s)),
+      prev.map((step, index) =>
+        index <= stepIndex ? { ...step, status: 'completed' } : step,
+      ),
     );
   }, []);
 
   const markAllCompleted = useCallback(() => {
-    setSteps(prev => prev.map(s => ({ ...s, status: 'completed' })));
+    setSteps(prev => prev.map(step => ({ ...step, status: 'completed' })));
     setProgress(100);
     setJobState('completed');
   }, []);
 
+  const applyJobSnapshot = useCallback(
+    (job: AnalysisJob) => {
+      setProgress(job.progress);
+      setErrorMessage(job.error);
+      setClarificationQuestion(job.clarificationQuestion);
+
+      if (job.status === 'completed') {
+        markAllCompleted();
+        return;
+      }
+
+      if (job.status === 'failed') {
+        setJobState('failed');
+        return;
+      }
+
+      if (job.status === 'waiting_for_user') {
+        setJobState('waiting_for_user');
+      }
+
+      if (job.currentNode) {
+        const index = NODE_INDEX_MAP[job.currentNode];
+        if (index !== undefined) {
+          markStepActive(index);
+        }
+      }
+    },
+    [markAllCompleted, markStepActive],
+  );
+
+  const activateNode = useCallback(
+    (node: string) => {
+      const index = NODE_INDEX_MAP[node];
+      if (index === undefined) {
+        return;
+      }
+
+      markStepActive(index);
+      setProgress(prev => NODE_PROGRESS_MAP[node] ?? prev);
+    },
+    [markStepActive],
+  );
+
   const handleMessage = useCallback(
     (msg: WsMessage) => {
       switch (msg.type) {
-        case 'step_started': {
-          const { step } = msg.payload as StepStartedPayload;
-          const idx = STEP_INDEX_MAP[step];
-          if (idx !== undefined) {
-            markStepActive(idx);
-            // Approximate progress based on step index
-            setProgress(Math.round(((idx) / INITIAL_STEPS.length) * 90));
+        case 'job_started': {
+          const payload = msg.payload as JobStartedPayload;
+          setJobState('processing');
+          activateNode('IngestInputNode');
+          if (payload.inputSource) {
+            setClarificationQuestion(null);
           }
           break;
         }
 
-        case 'step_completed': {
-          const { step } = msg.payload as StepStartedPayload;
-          const idx = STEP_INDEX_MAP[step];
-          if (idx !== undefined) {
-            markStepCompleted(idx);
+        case 'content_normalized': {
+          const payload = msg.payload as ContentNormalizedPayload;
+          markStepCompleted(1);
+          setProgress(20);
+          activateNode('ContentToActionNode');
+          if (payload.normalizedLength > 0) {
+            setErrorMessage(null);
           }
           break;
         }
 
-        case 'analysis_progress': {
-          const p = (msg.payload as { progress?: number }).progress;
-          if (typeof p === 'number') {
-            setProgress(p);
+        case 'node_started': {
+          const { node } = msg.payload as NodeStartedPayload;
+          activateNode(node);
+          break;
+        }
+
+        case 'content_analyzed': {
+          const payload = msg.payload as ContentAnalyzedPayload;
+          markStepCompleted(2);
+          setProgress(40);
+          activateNode('DecisionRouterNode');
+          if (payload.actionCount >= 0) {
+            setErrorMessage(null);
           }
           break;
         }
 
-        case 'analysis_completed': {
+        case 'actions_routed': {
+          const payload = msg.payload as ActionsRoutedPayload;
+          markStepCompleted(3);
+          setProgress(55);
+          activateNode('SimulationNode');
+          if (payload.requiresApprovalCount >= 0) {
+            setClarificationQuestion(null);
+          }
+          break;
+        }
+
+        case 'simulation_ready': {
+          const payload = msg.payload as SimulationReadyPayload;
+          markStepCompleted(4);
+          setProgress(70);
+          activateNode('ApprovalOrExecutionNode');
+          if (payload.simulations.length >= 0) {
+            setClarificationQuestion(null);
+          }
+          break;
+        }
+
+        case 'awaiting_approval': {
+          const payload = msg.payload as AwaitingApprovalPayload;
+          markStepCompleted(5);
+          setProgress(85);
+          setJobState('waiting_for_user');
+          setClarificationQuestion(
+            `${payload.pendingApprovals.length} action(s) need approval.`,
+          );
+          break;
+        }
+
+        case 'actions_queued': {
+          const payload = msg.payload as ActionsQueuedPayload;
+          markStepCompleted(5);
+          setProgress(85);
+          activateNode('OutcomeStateNode');
+          if (payload.executedActions.length > 0) {
+            setErrorMessage(null);
+          }
+          break;
+        }
+
+        case 'workflow_completed':
           markAllCompleted();
           break;
-        }
 
-        case 'analysis_failed': {
-          const { error } = msg.payload as AnalysisFailedPayload;
+        case 'workflow_failed': {
+          const { error } = msg.payload as WorkflowFailedPayload;
           setErrorMessage(error?.message ?? 'Analysis failed.');
           setJobState('failed');
-          break;
-        }
-
-        case 'analysis_needs_clarification': {
-          const { question } = msg.payload as { question: string };
-          setClarificationQuestion(question);
-          setJobState('clarification_needed');
           break;
         }
 
@@ -141,21 +282,40 @@ export function useAnalysisJob(jobId: string | undefined): UseAnalysisJobResult 
           break;
       }
     },
-    [markStepActive, markStepCompleted, markAllCompleted],
+    [activateNode, markAllCompleted, markStepCompleted],
   );
 
   useEffect(() => {
-    if (!jobId) { return; }
+    if (!jobId) {
+      return;
+    }
+
+    let isMounted = true;
+
+    getAnalysisJob(jobId)
+      .then(job => {
+        if (isMounted) {
+          applyJobSnapshot(job);
+        }
+      })
+      .catch(error => {
+        if (isMounted) {
+          setErrorMessage(
+            error instanceof Error ? error.message : 'Could not load job.',
+          );
+        }
+      });
 
     const client = clientRef.current;
     client.connect(jobId, handleMessage);
 
     return () => {
+      isMounted = false;
       client.disconnect();
     };
-  }, [jobId, handleMessage]);
+  }, [applyJobSnapshot, handleMessage, jobId]);
 
-  const activeStep = steps.find(s => s.status === 'active');
+  const activeStep = steps.find(step => step.status === 'active');
 
   return {
     steps,
@@ -163,6 +323,6 @@ export function useAnalysisJob(jobId: string | undefined): UseAnalysisJobResult 
     jobState,
     errorMessage,
     clarificationQuestion,
-    activeStepLabel: activeStep?.label ?? 'Processing…',
+    activeStepLabel: activeStep?.label ?? 'Processing...',
   };
 }

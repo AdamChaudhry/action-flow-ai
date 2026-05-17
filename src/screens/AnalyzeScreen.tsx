@@ -1,22 +1,19 @@
 import React, { useCallback } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AnalyzeSubmitSection } from '../components/analyze/AnalyzeSubmitSection';
 import { ContentInputSection } from '../components/analyze/ContentInputSection';
 import { UrlImportSection } from '../components/analyze/UrlImportSection';
 import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
 import { useSubmitAnalysis } from '../hooks/useSubmitAnalysis';
-import type { MainTabParamList } from '../navigation/MainTabNavigator';
+import type { AnalyzeStackParamList } from '../navigation/AnalyzeStackNavigator';
 
-type AnalyzeNavigationProp = BottomTabNavigationProp<
-  MainTabParamList,
-  'Analyze'
->;
+type AnalyzeNavProp = NativeStackNavigationProp<AnalyzeStackParamList, 'AnalyzeInput'>;
 
 export const AnalyzeScreen: React.FC = () => {
-  const navigation = useNavigation<AnalyzeNavigationProp>();
+  const navigation = useNavigation<AnalyzeNavProp>();
 
   const {
     textContent,

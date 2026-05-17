@@ -1,7 +1,10 @@
 import { API_BASE_URL, PLACEHOLDER_USER_ID } from '../constants/config';
-import type { SubmitJobPayload, SubmitJobResponse, AnalysisJob } from '../types/analysis';
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+import type {
+  AnalysisJob,
+  AnalysisResult,
+  SubmitJobPayload,
+  SubmitJobResponse,
+} from '../types/analysis';
 
 function authHeaders(): Record<string, string> {
   return { 'x-user-id': PLACEHOLDER_USER_ID };
@@ -10,13 +13,13 @@ function authHeaders(): Record<string, string> {
 async function parseError(response: Response): Promise<Error> {
   try {
     const body = await response.json();
-    return new Error(body?.message ?? `HTTP ${response.status}`);
+    return new Error(
+      body?.error?.message ?? body?.message ?? `HTTP ${response.status}`,
+    );
   } catch {
     return new Error(`HTTP ${response.status}`);
   }
 }
-
-// ─── API Functions ────────────────────────────────────────────────────────────
 
 /**
  * POST /api/analysis-jobs
@@ -51,6 +54,21 @@ export async function submitAnalysisJob(
     formData.append('title', payload.title);
   }
 
+  if (payload.inputSource) {
+    formData.append('inputSource', payload.inputSource);
+  }
+
+  if (payload.businessContext) {
+    formData.append('businessContext', payload.businessContext);
+  }
+
+  if (payload.simulationSettings) {
+    formData.append(
+      'simulationSettings',
+      JSON.stringify(payload.simulationSettings),
+    );
+  }
+
   const response = await fetch(`${API_BASE_URL}/api/analysis-jobs`, {
     method: 'POST',
     headers: authHeaders(),
@@ -67,7 +85,7 @@ export async function submitAnalysisJob(
 
 /**
  * GET /api/analysis-jobs/:jobId
- * Returns the current status and progress of an analysis job.
+ * Returns the current status and active graph node of an analysis job.
  */
 export async function getAnalysisJob(jobId: string): Promise<AnalysisJob> {
   const response = await fetch(`${API_BASE_URL}/api/analysis-jobs/${jobId}`, {
@@ -80,4 +98,26 @@ export async function getAnalysisJob(jobId: string): Promise<AnalysisJob> {
 
   const result = await response.json();
   return result.data as AnalysisJob;
+}
+
+/**
+ * GET /api/analysis-jobs/:jobId/result
+ * Returns the full structured result once the workflow has produced it.
+ */
+export async function getAnalysisResult(
+  jobId: string,
+): Promise<AnalysisResult> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/analysis-jobs/${jobId}/result`,
+    {
+      headers: authHeaders(),
+    },
+  );
+
+  if (!response.ok) {
+    throw await parseError(response);
+  }
+
+  const result = await response.json();
+  return result.data as AnalysisResult;
 }

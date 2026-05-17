@@ -5,7 +5,8 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
-import { useRoute, RouteProp } from '@react-navigation/native';
+import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Svg, { Circle } from 'react-native-svg';
 import {
   CheckCircle2,
@@ -25,9 +26,11 @@ import { Badge } from '../components/Badge';
 import { colors } from '../theme/colors';
 import { spacing, rounded } from '../theme/spacing';
 import { useAnalysisJob, WorkflowStep, StepStatus } from '../hooks/useAnalysisJob';
+import type { AnalyzeStackParamList } from '../navigation/AnalyzeStackNavigator';
 
 // ─── Navigation types ────────────────────────────────────────────────────────
 
+type ProcessingNavProp = NativeStackNavigationProp<AnalyzeStackParamList, 'Processing'>;
 type ProcessingRouteParams = {
   Processing: { jobId?: string };
 };
@@ -59,7 +62,7 @@ const CircularProgress: React.FC<{ progress: number; size?: number }> = ({
 
 // ─── Step Icon ────────────────────────────────────────────────────────────────
 
-const PENDING_ICONS = [CircleIcon, BarChart2, GitBranch, Layers, Cpu, CircleIcon];
+const PENDING_ICONS = [CircleIcon, BarChart2, GitBranch, Layers, Cpu, Zap, CircleIcon];
 
 const StepIcon: React.FC<{ status: StepStatus; index: number }> = ({ status, index }) => {
   if (status === 'completed') {
@@ -74,7 +77,7 @@ const StepIcon: React.FC<{ status: StepStatus; index: number }> = ({ status, ind
 
 // ─── Workflow Step Row ─────────────────────────────────────────────────────────
 
-const TOTAL_STEPS = 6;
+const TOTAL_STEPS = 7;
 
 const WorkflowStepRow: React.FC<{ step: WorkflowStep; index: number }> = ({ step, index }) => {
   const isActive  = step.status === 'active';
@@ -130,15 +133,23 @@ const rowStyles = StyleSheet.create({
 
 export const ProcessingScreen: React.FC = () => {
   const route = useRoute<RouteProp<ProcessingRouteParams, 'Processing'>>();
+  const navigation = useNavigation<ProcessingNavProp>();
   const jobId = route.params?.jobId;
 
   const { steps, progress, jobState, errorMessage, clarificationQuestion, activeStepLabel } =
     useAnalysisJob(jobId);
 
-  // Show clarification alert when the server needs more info
+  // Navigate to Insights when the workflow completes
   React.useEffect(() => {
-    if (jobState === 'clarification_needed' && clarificationQuestion) {
-      Alert.alert('Clarification Needed', clarificationQuestion);
+    if (jobState === 'completed' && jobId) {
+      navigation.navigate('Insights', { jobId });
+    }
+  }, [jobState, jobId, navigation]);
+
+  // Show an alert when the workflow needs human input.
+  React.useEffect(() => {
+    if (jobState === 'waiting_for_user' && clarificationQuestion) {
+      Alert.alert('Approval Needed', clarificationQuestion);
     }
   }, [jobState, clarificationQuestion]);
 
@@ -231,7 +242,7 @@ export const ProcessingScreen: React.FC = () => {
         <CircularProgress progress={progress} size={56} />
       </View>
 
-      <View style={{ height: 24 }} />
+      <View style={styles.bottomSpacer} />
     </ScrollView>
   );
 };
@@ -293,4 +304,5 @@ const styles = StyleSheet.create({
     borderTopWidth: 1, borderTopColor: colors.border,
   },
   progressTextBlock: { gap: 2 },
+  bottomSpacer: { height: 24 },
 });
