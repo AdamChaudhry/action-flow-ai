@@ -92,6 +92,32 @@ export interface Implication {
   urgency: ImplicationUrgency;
 }
 
+// ─── RecommendedAction ────────────────────────────────────────────────────────
+
+export type ActionType =
+  | 'notify'
+  | 'assign_task'
+  | 'update_dashboard'
+  | 'escalate'
+  | 'create_ticket'
+  | 'prepare_draft'
+  | 'request_human_review'
+  | 'no_action';
+
+export type ActionPriority = 'low' | 'medium' | 'high' | 'critical';
+
+export interface RecommendedAction {
+  id: string;                       // action_1, action_2 …
+  relatedImplicationIds: string[];
+  title: string;
+  description: string;
+  actionType: ActionType;
+  priority: ActionPriority;
+  requiresHumanApproval: boolean;
+  expectedImpact: string;
+  parameters: Record<string, unknown>;
+}
+
 // ─── Analysis Result ──────────────────────────────────────────────────────────
 
 export interface AnalysisResult {
@@ -99,7 +125,7 @@ export interface AnalysisResult {
   normalizedContent?: string;
   insights?: Insight[];
   implications?: Implication[];
-  recommendedActions?: unknown[];
+  recommendedActions?: RecommendedAction[];
   simulations?: unknown[];
   pendingApprovals?: unknown[];
   executedActions?: unknown[];

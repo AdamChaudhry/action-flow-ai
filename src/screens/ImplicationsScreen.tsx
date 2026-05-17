@@ -29,8 +29,8 @@ export const ImplicationsScreen: React.FC = () => {
   const { implications, isLoading, error, refetch } = useImplications(jobId);
 
   const navigateToActions = useCallback(() => {
-    navigation.getParent<RootTabNavigationProp>()?.jumpTo('Actions');
-  }, [navigation]);
+    navigation.getParent<RootTabNavigationProp>()?.navigate('Actions', { jobId });
+  }, [navigation, jobId]);
 
   if (isLoading && implications.length === 0) {
     return <ImplicationsLoadingState />;

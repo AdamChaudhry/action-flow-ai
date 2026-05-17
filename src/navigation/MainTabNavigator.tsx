@@ -15,7 +15,7 @@ interface TabBarIconProps {
 export type MainTabParamList = {
   Dashboard: undefined;
   Analyze: undefined;
-  Actions: undefined;
+  Actions: { jobId?: string } | undefined;
   History: undefined;
 };
 
