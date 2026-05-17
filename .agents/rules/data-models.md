@@ -223,26 +223,112 @@ interface RecommendedAction {
 
 ---
 
-### ActionSimulation
+### BaselineState
 
-Produced by **Node 5 — SimulationNode** (code-only, no LLM). One entry per auto-executable action.
+Captured by **Node 2 — NormalizeContentNode** (deterministic, no LLM). Used by ExecutionNode as the before-state context.
 
 ```typescript
+interface BaselineState {
+  metrics: Record<string, string | number | boolean | null>;
+  facts: string[];       // grounded statements from input
+  constraints: string[]; // dimensions absent in the input
+  capturedAt: string;    // ISO 8601
+}
+```
+
+**Example:**
+```json
+{
+  "metrics": {
+    "support_tickets": "40%",
+    "conversionRate": "unknown",
+    "churnRate": "unknown"
+  },
+  "facts": [
+    "Support ticket volume increased 40% this month.",
+    "Top complaint is checkout failures on mobile."
+  ],
+  "constraints": [
+    "No revenue baseline provided",
+    "No conversion-rate metric provided"
+  ],
+  "capturedAt": "2026-05-17T17:00:00.000Z"
+}
+```
+
+---
+
+### ActionSimulation
+
+Produced by **ExecutionNode** (LLM-powered, Workflow 2). Each call to the simulate API appends one entry to `simulations[]`.
+
+```typescript
+interface SimulatedChange {
+  metric: string;
+  before: string | number | boolean | null;
+  after: string | number | boolean | null;
+  direction: 'increase' | 'decrease' | 'no_change' | 'unknown';
+  confidence: number;  // 0.0 – 1.0
+  rationale: string;
+}
+
 interface ActionSimulation {
+  // Identity
   actionId: string;
   actionTitle: string;
   actionType: ActionType;
   parameters: Record<string, unknown>;
-  projectedOutcome: string;
   estimatedRisk: 'low' | 'medium' | 'high';
-  requiresHumanApproval: false; // always false in simulation
+  requiresHumanApproval: boolean;
+
+  // Before / After comparison (LLM-generated)
+  beforeState: Record<string, unknown>;         // mirrors baseline metrics
+  simulatedAfterState: Record<string, unknown>; // projected state after execution
+  expectedChanges: SimulatedChange[];
+
+  // Quality metadata
+  projectedOutcome: string;
+  confidence: number;     // 0.0 – 1.0
+  assumptions: string[];
+  risks: string[];
+  evidenceUsed: string[]; // quotes / paraphrases from original content
 }
 ```
 
-**Estimated risk derivation:**
-- `high`: priority = `critical` OR actionType = `escalate`
-- `medium`: priority = `high`
-- `low`: everything else
+**Example:**
+```json
+{
+  "actionId": "action_1",
+  "actionTitle": "Send Incident Notification to Affected Mobile Users",
+  "actionType": "notify",
+  "parameters": { "channel": "email", "segment": "enterprise" },
+  "estimatedRisk": "medium",
+  "requiresHumanApproval": true,
+  "beforeState": {
+    "support_tickets": "40% above baseline",
+    "customerChurnRisk": "elevated"
+  },
+  "simulatedAfterState": {
+    "support_tickets": "reduced within 48h",
+    "customerChurnRisk": "reduced for notified segment"
+  },
+  "expectedChanges": [
+    {
+      "metric": "customerChurnRisk",
+      "before": "elevated",
+      "after": "reduced",
+      "direction": "decrease",
+      "confidence": 0.72,
+      "rationale": "Proactive communication has been shown to reduce churn by setting expectations."
+    }
+  ],
+  "projectedOutcome": "Affected enterprise customers will be informed, reducing churn risk and improving trust.",
+  "confidence": 0.74,
+  "assumptions": ["Email deliverability is functional", "Segment includes all affected users"],
+  "risks": ["May generate additional inbound support tickets if message is unclear"],
+  "evidenceUsed": ["Support ticket volume increased 40%", "Top complaint: checkout failures on mobile"]
+}
+```
 
 ---
 

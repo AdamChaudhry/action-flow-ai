@@ -9,12 +9,16 @@ interface ActionsContentProps {
   actions: RecommendedAction[];
   isRefreshing: boolean;
   onRefresh: () => void;
+  onSimulate: (actionId: string) => void;
+  isSimulating: boolean;
 }
 
 export const ActionsContent: React.FC<ActionsContentProps> = ({
   actions,
   isRefreshing,
   onRefresh,
+  onSimulate,
+  isSimulating,
 }) => (
   <ScrollView
     style={styles.container}
@@ -28,7 +32,7 @@ export const ActionsContent: React.FC<ActionsContentProps> = ({
       />
     }
   >
-    <ActionsListSection actions={actions} />
+    <ActionsListSection actions={actions} onSimulate={onSimulate} isSimulating={isSimulating} />
     <View style={styles.bottomSpacer} />
   </ScrollView>
 );

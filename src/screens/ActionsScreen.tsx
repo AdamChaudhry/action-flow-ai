@@ -1,20 +1,33 @@
-import React from 'react';
-import { RouteProp, useRoute } from '@react-navigation/native';
+import React, { useCallback } from 'react';
+import { RouteProp, useRoute, useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ActionsContent } from '../components/actions/ActionsContent';
 import {
   ActionsFeedbackState,
   ActionsLoadingState,
 } from '../components/actions/ActionsStateView';
 import { useRecommendedActions } from '../hooks/useRecommendedActions';
-import type { MainTabParamList } from '../navigation/MainTabNavigator';
+import { useSubmitSimulation } from '../hooks/useSubmitSimulation';
+import type { ActionsStackParamList } from '../navigation/ActionsStackNavigator';
 
-type ActionsRouteProp = RouteProp<MainTabParamList, 'Actions'>;
+type ActionsNavProp = NativeStackNavigationProp<ActionsStackParamList, 'ActionsList'>;
+type ActionsRouteProp = RouteProp<ActionsStackParamList, 'ActionsList'>;
 
 export const ActionsScreen: React.FC = () => {
-  const route = useRoute<ActionsRouteProp>();
-  const jobId = route.params?.jobId;
+  const route      = useRoute<ActionsRouteProp>();
+  const navigation = useNavigation<ActionsNavProp>();
+  const jobId      = route.params?.jobId;
 
   const { actions, isLoading, error, refetch } = useRecommendedActions(jobId);
+  const { triggerSimulation, isSubmitting }     = useSubmitSimulation();
+
+  const handleSimulate = useCallback(async (actionId: string) => {
+    if (!jobId) { return; }
+    const simulationId = await triggerSimulation(jobId, actionId);
+    if (simulationId) {
+      navigation.navigate('SimulationResult', { jobId, simulationId });
+    }
+  }, [jobId, triggerSimulation, navigation]);
 
   if (isLoading && actions.length === 0) {
     return <ActionsLoadingState />;
@@ -44,6 +57,8 @@ export const ActionsScreen: React.FC = () => {
       actions={actions}
       isRefreshing={isLoading}
       onRefresh={refetch}
+      onSimulate={handleSimulate}
+      isSimulating={isSubmitting}
     />
   );
 };

@@ -2,9 +2,9 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { LayoutGrid, LineChart, ListChecks, Clock } from 'lucide-react-native';
 import { DashboardScreen } from '../screens/DashboardScreen';
-import { ActionsScreen } from '../screens/ActionsScreen';
 import { HistoryScreen } from '../screens/HistoryScreen';
 import { AnalyzeStackNavigator } from './AnalyzeStackNavigator';
+import { ActionsStackNavigator } from './ActionsStackNavigator';
 import { colors } from '../theme/colors';
 
 interface TabBarIconProps {
@@ -73,7 +73,7 @@ export const MainTabNavigator = () => {
       />
       <Tab.Screen
         name="Actions"
-        component={ActionsScreen}
+        component={ActionsStackNavigator}
         options={{ tabBarIcon: renderActionsIcon }}
       />
       <Tab.Screen

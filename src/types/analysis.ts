@@ -127,14 +127,46 @@ export interface PendingApproval {
   requestedAt: string;
 }
 
+// ─── Simulation types ─────────────────────────────────────────────────────────
+
+export interface SimulatedChange {
+  metric: string;
+  before: string | number | boolean | null;
+  after: string | number | boolean | null;
+  direction: 'increase' | 'decrease' | 'no_change' | 'unknown';
+  confidence: number; // 0.0 – 1.0
+  rationale: string;
+}
+
 export interface ActionSimulation {
+  // Identity
   actionId: string;
   actionTitle: string;
-  actionType: ActionType | string;
+  actionType: ActionType;
   parameters: Record<string, unknown>;
-  projectedOutcome: string;
-  estimatedRisk: 'low' | 'medium' | 'high' | string;
+  estimatedRisk: 'low' | 'medium' | 'high';
   requiresHumanApproval: boolean;
+
+  // Before / After (LLM-generated)
+  beforeState: Record<string, unknown>;
+  simulatedAfterState: Record<string, unknown>;
+  expectedChanges: SimulatedChange[];
+
+  // Quality metadata
+  projectedOutcome: string;
+  confidence: number;     // 0.0 – 1.0
+  assumptions: string[];
+  risks: string[];
+  evidenceUsed: string[];
+}
+
+/** Wrapper document stored in the simulations collection */
+export interface SimulationRecord {
+  id: string;          // Firestore document ID
+  jobId: string;
+  actionId: string;
+  createdAt: string;   // ISO 8601
+  simulation: ActionSimulation;
 }
 
 // ─── Analysis Result ──────────────────────────────────────────────────────────
@@ -152,6 +184,7 @@ export interface AnalysisResult {
   createdAt?: string;
   updatedAt: string;
 }
+
 
 export type WsEventType =
   | 'job_started'

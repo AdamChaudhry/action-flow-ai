@@ -3,6 +3,7 @@ import {
   View,
   StyleSheet,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
 import {
   RefreshCw,
@@ -92,22 +93,35 @@ function deriveRiskLevel(priority: ActionPriority): Level {
 interface ActionButtonsProps {
   requiresHumanApproval: boolean;
   onSimulate?: () => void;
+  isSimulating?: boolean;
 }
 
 const ActionButtons: React.FC<ActionButtonsProps> = ({
   requiresHumanApproval,
   onSimulate,
+  isSimulating,
 }) => (
   <View>
     {requiresHumanApproval ? (
-      <TouchableOpacity style={btn.simulateBtn} onPress={onSimulate} activeOpacity={0.8}>
-        <RefreshCw size={14} color={colors.primaryInverse} />
-        <Typography variant="labelMd" color={colors.primaryInverse}>Simulate</Typography>
+      <TouchableOpacity
+        style={[btn.simulateBtn, isSimulating && btn.simulateBtnDisabled]}
+        onPress={onSimulate}
+        disabled={isSimulating}
+        activeOpacity={0.8}
+      >
+        {isSimulating ? (
+          <ActivityIndicator size="small" color="#FFFFFF" />
+        ) : (
+          <RefreshCw size={14} color="#FFFFFF" />
+        )}
+        <Typography variant="labelMd" color="#FFFFFF">
+          {isSimulating ? 'Starting…' : 'Simulate'}
+        </Typography>
       </TouchableOpacity>
     ) : (
       <TouchableOpacity style={btn.simulateBtn} onPress={onSimulate} activeOpacity={0.8}>
-        <RefreshCw size={14} color={colors.primaryInverse} />
-        <Typography variant="labelMd" color={colors.primaryInverse}>Simulate</Typography>
+        <RefreshCw size={14} color="#FFFFFF" />
+        <Typography variant="labelMd" color="#FFFFFF">Simulate</Typography>
       </TouchableOpacity>
     )}
   </View>
@@ -124,12 +138,17 @@ const btn = StyleSheet.create({
     borderRadius: rounded.md,
     paddingVertical: 12,
   },
+  simulateBtnDisabled: {
+    opacity: 0.6,
+  },
 });
 
 // ─── Featured Action Card ─────────────────────────────────────────────────────
 
 interface FeaturedActionCardProps {
   action: RecommendedAction;
+  onSimulate?: () => void;
+  isSimulating?: boolean;
 }
 
 /**
@@ -137,7 +156,7 @@ interface FeaturedActionCardProps {
  * Displays: priority badge, title, expected impact/effort/risk metrics,
  * description quote block, and Approve/Simulate/Edit/Reject buttons.
  */
-export const FeaturedActionCard: React.FC<FeaturedActionCardProps> = ({ action }) => {
+export const FeaturedActionCard: React.FC<FeaturedActionCardProps> = ({ action, onSimulate, isSimulating }) => {
   const impactLevel = deriveImpactLevel(action.expectedImpact);
   const effortLevel = deriveEffortLevel(action.priority);
   const riskLevel   = deriveRiskLevel(action.priority);
@@ -171,8 +190,12 @@ export const FeaturedActionCard: React.FC<FeaturedActionCardProps> = ({ action }
         </View>
       </View>
 
-      {/* ── Action buttons ───────────────── */}
-      <ActionButtons requiresHumanApproval={action.requiresHumanApproval} />
+      {/* ── Action buttons ──────────── */}
+      <ActionButtons
+        requiresHumanApproval={action.requiresHumanApproval}
+        onSimulate={onSimulate}
+        isSimulating={isSimulating}
+      />
     </View>
   );
 };

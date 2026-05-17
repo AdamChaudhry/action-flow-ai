@@ -7,10 +7,14 @@ import { FeaturedActionCard } from './FeaturedActionCard';
 
 interface ActionsListSectionProps {
   actions: RecommendedAction[];
+  onSimulate: (actionId: string) => void;
+  isSimulating: boolean;
 }
 
 export const ActionsListSection: React.FC<ActionsListSectionProps> = ({
   actions,
+  onSimulate,
+  isSimulating,
 }) => {
   const { featuredActions, compactActions } = useMemo(
     () => ({
@@ -25,7 +29,12 @@ export const ActionsListSection: React.FC<ActionsListSectionProps> = ({
       <ActionsHeader totalCount={actions.length} newCount={actions.length} />
 
       {featuredActions.map(action => (
-        <FeaturedActionCard key={action.id} action={action} />
+        <FeaturedActionCard
+          key={action.id}
+          action={action}
+          onSimulate={() => onSimulate(action.id)}
+          isSimulating={isSimulating}
+        />
       ))}
 
       {compactActions.length > 0 && featuredActions.length > 0 && (
