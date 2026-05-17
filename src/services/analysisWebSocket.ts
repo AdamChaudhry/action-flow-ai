@@ -11,7 +11,7 @@ type ErrorHandler = () => void;
 export class AnalysisWebSocketClient {
   private ws: WebSocket | null = null;
   private readonly terminalEvents: WsEventType[] = [
-    'workflow_completed',
+    'awaiting_approval',
     'workflow_failed',
   ];
 

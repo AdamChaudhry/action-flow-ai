@@ -2,6 +2,7 @@ import { API_BASE_URL, PLACEHOLDER_USER_ID } from '../constants/config';
 import type {
   AnalysisJob,
   AnalysisResult,
+  ActionSimulation,
   SubmitJobPayload,
   SubmitJobResponse,
 } from '../types/analysis';
@@ -120,4 +121,28 @@ export async function getAnalysisResult(
 
   const result = await response.json();
   return result.data as AnalysisResult;
+}
+
+/**
+ * POST /api/analysis-jobs/:jobId/actions/:actionId/simulate
+ * Runs the execution workflow for a single action and returns its simulation.
+ */
+export async function simulateAnalysisAction(
+  jobId: string,
+  actionId: string,
+): Promise<ActionSimulation> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/analysis-jobs/${jobId}/actions/${actionId}/simulate`,
+    {
+      method: 'POST',
+      headers: authHeaders(),
+    },
+  );
+
+  if (!response.ok) {
+    throw await parseError(response);
+  }
+
+  const result = await response.json();
+  return result.data.simulation as ActionSimulation;
 }

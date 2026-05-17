@@ -118,6 +118,25 @@ export interface RecommendedAction {
   parameters: Record<string, unknown>;
 }
 
+export interface PendingApproval {
+  actionId: string;
+  actionTitle: string;
+  actionType: ActionType | string;
+  parameters: Record<string, unknown>;
+  status: 'pending' | 'approved' | 'rejected' | string;
+  requestedAt: string;
+}
+
+export interface ActionSimulation {
+  actionId: string;
+  actionTitle: string;
+  actionType: ActionType | string;
+  parameters: Record<string, unknown>;
+  projectedOutcome: string;
+  estimatedRisk: 'low' | 'medium' | 'high' | string;
+  requiresHumanApproval: boolean;
+}
+
 // ─── Analysis Result ──────────────────────────────────────────────────────────
 
 export interface AnalysisResult {
@@ -126,8 +145,8 @@ export interface AnalysisResult {
   insights?: Insight[];
   implications?: Implication[];
   recommendedActions?: RecommendedAction[];
-  simulations?: unknown[];
-  pendingApprovals?: unknown[];
+  simulations?: ActionSimulation[];
+  pendingApprovals?: PendingApproval[];
   executedActions?: unknown[];
   outcome?: WorkflowOutcome | null;
   createdAt?: string;
@@ -139,11 +158,9 @@ export type WsEventType =
   | 'content_normalized'
   | 'node_started'
   | 'content_analyzed'
-  | 'actions_routed'
-  | 'simulation_ready'
   | 'awaiting_approval'
-  | 'actions_queued'
-  | 'workflow_completed'
+  | 'action_simulated'
+  | 'outcome_updated'
   | 'workflow_failed';
 
 export interface WsMessage<T = unknown> {
@@ -172,21 +189,8 @@ export interface ContentAnalyzedPayload {
   actionCount: number;
 }
 
-export interface ActionsRoutedPayload {
-  requiresApprovalCount: number;
-  autoExecuteCount: number;
-}
-
-export interface SimulationReadyPayload {
-  simulations: unknown[];
-}
-
 export interface AwaitingApprovalPayload {
-  pendingApprovals: unknown[];
-}
-
-export interface ActionsQueuedPayload {
-  executedActions: unknown[];
+  pendingApprovals: PendingApproval[];
 }
 
 export interface WorkflowOutcome {
@@ -202,6 +206,14 @@ export interface WorkflowOutcome {
 }
 
 export interface WorkflowCompletedPayload {
+  outcome: WorkflowOutcome;
+}
+
+export interface ActionSimulatedPayload {
+  simulation: ActionSimulation;
+}
+
+export interface OutcomeUpdatedPayload {
   outcome: WorkflowOutcome;
 }
 

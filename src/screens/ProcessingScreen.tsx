@@ -3,7 +3,6 @@ import {
   View,
   StyleSheet,
   ScrollView,
-  Alert,
 } from 'react-native';
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -14,8 +13,6 @@ import {
   Circle as CircleIcon,
   BarChart2,
   GitBranch,
-  Layers,
-  Cpu,
   Zap,
   AlertCircle,
   HelpCircle,
@@ -62,7 +59,7 @@ const CircularProgress: React.FC<{ progress: number; size?: number }> = ({
 
 // ─── Step Icon ────────────────────────────────────────────────────────────────
 
-const PENDING_ICONS = [CircleIcon, BarChart2, GitBranch, Layers, Cpu, Zap, CircleIcon];
+const PENDING_ICONS = [CircleIcon, BarChart2, GitBranch];
 
 const StepIcon: React.FC<{ status: StepStatus; index: number }> = ({ status, index }) => {
   if (status === 'completed') {
@@ -77,7 +74,7 @@ const StepIcon: React.FC<{ status: StepStatus; index: number }> = ({ status, ind
 
 // ─── Workflow Step Row ─────────────────────────────────────────────────────────
 
-const TOTAL_STEPS = 7;
+const TOTAL_STEPS = 3;
 
 const WorkflowStepRow: React.FC<{ step: WorkflowStep; index: number }> = ({ step, index }) => {
   const isActive  = step.status === 'active';
@@ -136,22 +133,15 @@ export const ProcessingScreen: React.FC = () => {
   const navigation = useNavigation<ProcessingNavProp>();
   const jobId = route.params?.jobId;
 
-  const { steps, progress, jobState, errorMessage, clarificationQuestion, activeStepLabel } =
+  const { steps, progress, jobState, errorMessage, activeStepLabel } =
     useAnalysisJob(jobId);
 
-  // Navigate to Insights when the workflow completes
+  // Workflow 1 completes when the API emits awaiting_approval.
   React.useEffect(() => {
     if (jobState === 'completed' && jobId) {
       navigation.navigate('Insights', { jobId });
     }
   }, [jobState, jobId, navigation]);
-
-  // Show an alert when the workflow needs human input.
-  React.useEffect(() => {
-    if (jobState === 'waiting_for_user' && clarificationQuestion) {
-      Alert.alert('Approval Needed', clarificationQuestion);
-    }
-  }, [jobState, clarificationQuestion]);
 
   const isError     = jobState === 'failed';
   const isCompleted = jobState === 'completed';
@@ -169,7 +159,7 @@ export const ProcessingScreen: React.FC = () => {
         </Typography>
         <Typography variant="bodyMd" color={colors.textSecondary} align="center" style={styles.heroSubtitle}>
           {isCompleted
-            ? 'All steps completed successfully. Your insights are ready.'
+            ? 'Analysis is ready. Review insights, implications, and actions before simulating execution.'
             : isError
             ? errorMessage ?? 'An unexpected error occurred.'
             : 'ActionFlow AI is processing your request using advanced semantic mapping and predictive logic.'}
@@ -214,12 +204,12 @@ export const ProcessingScreen: React.FC = () => {
               : <Zap size={14} color={colors.surface} />
             }
             <Typography variant="labelSm" color={colors.surface} style={styles.signalHeaderText}>
-              {isCompleted ? 'ANALYSIS COMPLETE' : 'PRELIMINARY SIGNAL'}
+              {isCompleted ? 'READY FOR REVIEW' : 'PRELIMINARY SIGNAL'}
             </Typography>
           </View>
           <Typography variant="bodyMd" color={colors.surface} style={styles.signalBody}>
             {isCompleted
-              ? 'Your full results are now available. Navigate to the results screen to view insights, implications, and recommended actions.'
+              ? 'Workflow 1 is complete. Recommended actions are waiting for review and simulation.'
               : 'AI is actively mapping patterns in your content. Preliminary signals will appear here as they are detected.'}
           </Typography>
           {!isCompleted && (

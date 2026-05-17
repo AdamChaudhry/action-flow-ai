@@ -5,9 +5,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import {
-  CheckCircle,
   RefreshCw,
-  Edit2,
   AlertCircle,
 } from 'lucide-react-native';
 import { Typography } from '../Typography';
@@ -93,57 +91,30 @@ function deriveRiskLevel(priority: ActionPriority): Level {
 
 interface ActionButtonsProps {
   requiresHumanApproval: boolean;
-  onApprove?: () => void;
   onSimulate?: () => void;
-  onEdit?: () => void;
-  onReject?: () => void;
 }
 
 const ActionButtons: React.FC<ActionButtonsProps> = ({
   requiresHumanApproval,
-  onApprove,
   onSimulate,
-  onEdit,
-  onReject,
 }) => (
   <View>
     {requiresHumanApproval ? (
-      <>
-        {/* Primary row: Approve + Simulate */}
-        <View style={btn.primaryRow}>
-          <TouchableOpacity style={btn.approveBtn} onPress={onApprove} activeOpacity={0.8}>
-            <CheckCircle size={14} color="#FFFFFF" />
-            <Typography variant="labelMd" color="#FFFFFF">Approve</Typography>
-          </TouchableOpacity>
-          <TouchableOpacity style={btn.simulateBtn} onPress={onSimulate} activeOpacity={0.8}>
-            <RefreshCw size={14} color={colors.textPrimary} />
-            <Typography variant="labelMd" color={colors.textPrimary}>Simulate</Typography>
-          </TouchableOpacity>
-        </View>
-        {/* Secondary row: Edit + Reject */}
-        <View style={btn.secondaryRow}>
-          <TouchableOpacity style={btn.editBtn} onPress={onEdit} activeOpacity={0.7}>
-            <Edit2 size={12} color={colors.textSecondary} />
-            <Typography variant="labelSm" color={colors.textSecondary}>Edit</Typography>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={onReject} activeOpacity={0.7}>
-            <Typography variant="labelSm" color="#EF4444">Reject</Typography>
-          </TouchableOpacity>
-        </View>
-      </>
+      <TouchableOpacity style={btn.simulateBtn} onPress={onSimulate} activeOpacity={0.8}>
+        <RefreshCw size={14} color={colors.primaryInverse} />
+        <Typography variant="labelMd" color={colors.primaryInverse}>Simulate</Typography>
+      </TouchableOpacity>
     ) : (
       <TouchableOpacity style={btn.simulateBtn} onPress={onSimulate} activeOpacity={0.8}>
-        <RefreshCw size={14} color={colors.textPrimary} />
-        <Typography variant="labelMd" color={colors.textPrimary}>Simulate</Typography>
+        <RefreshCw size={14} color={colors.primaryInverse} />
+        <Typography variant="labelMd" color={colors.primaryInverse}>Simulate</Typography>
       </TouchableOpacity>
     )}
   </View>
 );
 
 const btn = StyleSheet.create({
-  primaryRow: { flexDirection: 'row', gap: spacing.stackSm, marginBottom: spacing.stackSm },
-  secondaryRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  approveBtn: {
+  simulateBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
@@ -152,28 +123,6 @@ const btn = StyleSheet.create({
     backgroundColor: colors.primary,
     borderRadius: rounded.md,
     paddingVertical: 12,
-  },
-  simulateBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    backgroundColor: colors.surfaceContainerLow,
-    borderRadius: rounded.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingVertical: 12,
-  },
-  editBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: rounded.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
   },
 });
 

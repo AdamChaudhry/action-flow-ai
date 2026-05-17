@@ -3,14 +3,11 @@ import { getAnalysisJob } from '../services/analysisApi';
 import { AnalysisWebSocketClient } from '../services/analysisWebSocket';
 import type {
   AnalysisJob,
-  ActionsQueuedPayload,
-  ActionsRoutedPayload,
   AwaitingApprovalPayload,
   ContentAnalyzedPayload,
   ContentNormalizedPayload,
   JobStartedPayload,
   NodeStartedPayload,
-  SimulationReadyPayload,
   WorkflowFailedPayload,
   WsMessage,
 } from '../types/analysis';
@@ -19,20 +16,12 @@ const NODE_INDEX_MAP: Record<string, number> = {
   IngestInputNode: 0,
   NormalizeContentNode: 1,
   ContentToActionNode: 2,
-  DecisionRouterNode: 3,
-  SimulationNode: 4,
-  ApprovalOrExecutionNode: 5,
-  OutcomeStateNode: 6,
 };
 
 const NODE_PROGRESS_MAP: Record<string, number> = {
   IngestInputNode: 10,
   NormalizeContentNode: 20,
-  ContentToActionNode: 40,
-  DecisionRouterNode: 55,
-  SimulationNode: 70,
-  ApprovalOrExecutionNode: 85,
-  OutcomeStateNode: 95,
+  ContentToActionNode: 60,
 };
 
 export type StepStatus = 'completed' | 'active' | 'pending';
@@ -44,7 +33,7 @@ export interface WorkflowStep {
   status: StepStatus;
 }
 
-type JobState = 'processing' | 'completed' | 'failed' | 'waiting_for_user';
+type JobState = 'processing' | 'completed' | 'failed';
 
 const INITIAL_STEPS: WorkflowStep[] = [
   {
@@ -63,30 +52,6 @@ const INITIAL_STEPS: WorkflowStep[] = [
     id: 'analyze',
     label: 'Extracting insights and actions',
     subLabel: 'Insights, implications, recommendations',
-    status: 'pending',
-  },
-  {
-    id: 'route',
-    label: 'Routing recommended actions',
-    subLabel: 'Separating approvals from automatic actions',
-    status: 'pending',
-  },
-  {
-    id: 'simulate',
-    label: 'Simulating outcomes',
-    subLabel: 'Projecting impact and risk',
-    status: 'pending',
-  },
-  {
-    id: 'approve',
-    label: 'Preparing execution',
-    subLabel: 'Queueing actions and approvals',
-    status: 'pending',
-  },
-  {
-    id: 'outcome',
-    label: 'Producing final outcome',
-    subLabel: 'Summary and final workflow state',
     status: 'pending',
   },
 ];
@@ -150,13 +115,14 @@ export function useAnalysisJob(jobId: string | undefined): UseAnalysisJobResult 
         return;
       }
 
-      if (job.status === 'failed') {
-        setJobState('failed');
+      if (job.status === 'waiting_for_user') {
+        markAllCompleted();
         return;
       }
 
-      if (job.status === 'waiting_for_user') {
-        setJobState('waiting_for_user');
+      if (job.status === 'failed') {
+        setJobState('failed');
+        return;
       }
 
       if (job.currentNode) {
@@ -215,61 +181,21 @@ export function useAnalysisJob(jobId: string | undefined): UseAnalysisJobResult 
         case 'content_analyzed': {
           const payload = msg.payload as ContentAnalyzedPayload;
           markStepCompleted(2);
-          setProgress(40);
-          activateNode('DecisionRouterNode');
+          setProgress(60);
           if (payload.actionCount >= 0) {
             setErrorMessage(null);
           }
           break;
         }
 
-        case 'actions_routed': {
-          const payload = msg.payload as ActionsRoutedPayload;
-          markStepCompleted(3);
-          setProgress(55);
-          activateNode('SimulationNode');
-          if (payload.requiresApprovalCount >= 0) {
-            setClarificationQuestion(null);
-          }
-          break;
-        }
-
-        case 'simulation_ready': {
-          const payload = msg.payload as SimulationReadyPayload;
-          markStepCompleted(4);
-          setProgress(70);
-          activateNode('ApprovalOrExecutionNode');
-          if (payload.simulations.length >= 0) {
-            setClarificationQuestion(null);
-          }
-          break;
-        }
-
         case 'awaiting_approval': {
           const payload = msg.payload as AwaitingApprovalPayload;
-          markStepCompleted(5);
-          setProgress(85);
-          setJobState('waiting_for_user');
+          markAllCompleted();
           setClarificationQuestion(
             `${payload.pendingApprovals.length} action(s) need approval.`,
           );
           break;
         }
-
-        case 'actions_queued': {
-          const payload = msg.payload as ActionsQueuedPayload;
-          markStepCompleted(5);
-          setProgress(85);
-          activateNode('OutcomeStateNode');
-          if (payload.executedActions.length > 0) {
-            setErrorMessage(null);
-          }
-          break;
-        }
-
-        case 'workflow_completed':
-          markAllCompleted();
-          break;
 
         case 'workflow_failed': {
           const { error } = msg.payload as WorkflowFailedPayload;
