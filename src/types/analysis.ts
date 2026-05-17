@@ -51,32 +51,60 @@ export interface AnalysisJob {
 
 // ─── Insight ──────────────────────────────────────────────────────────────────
 
+export type InsightCategory =
+  | 'risk'
+  | 'opportunity'
+  | 'trend'
+  | 'anomaly'
+  | 'operational_issue'
+  | 'customer_issue'
+  | 'financial_issue'
+  | 'compliance_issue'
+  | 'strategic_issue';
+
 export type ImportanceLevel = 'critical' | 'high' | 'medium' | 'low';
 
 export interface Insight {
-  id: string;
+  id: string;            // insight_1, insight_2 …
   title: string;
-  summary: string;
-  category: string;
+  description: string;
+  summary?: string;
+  category: InsightCategory;
   importance?: ImportanceLevel | string | null;
-  /** Confidence score 0–1 */
-  confidence: number;
-  evidence: string;
-  whyItMatters: string;
-  relatedEntities: string[];
+  confidence: number;    // 0.0 – 1.0
+  evidence: string[] | string;    // quoted/paraphrased from input
+  whyItMatters?: string;
+  relatedEntities?: string[];
+}
+
+// ─── Implication ──────────────────────────────────────────────────────────────
+
+export type ImplicationSeverity = 'low' | 'medium' | 'high' | 'critical';
+export type ImplicationUrgency  = 'low' | 'medium' | 'high';
+export type PriorityLevel = 'low' | 'medium' | 'high';
+
+export interface Implication {
+  id: string;                   // implication_1, implication_2 …
+  relatedInsightIds: string[];  // references insight IDs
+  severity: ImplicationSeverity;
+  businessImpact: string;
+  affectedAreas: string[];
+  urgency: ImplicationUrgency;
 }
 
 // ─── Analysis Result ──────────────────────────────────────────────────────────
 
 export interface AnalysisResult {
   jobId: string;
-  insights: Insight[];
-  implications: unknown[];
-  recommendedActions: unknown[];
-  simulations: unknown[];
-  pendingApprovals: unknown[];
-  executedActions: unknown[];
-  outcome: WorkflowOutcome | null;
+  normalizedContent?: string;
+  insights?: Insight[];
+  implications?: Implication[];
+  recommendedActions?: unknown[];
+  simulations?: unknown[];
+  pendingApprovals?: unknown[];
+  executedActions?: unknown[];
+  outcome?: WorkflowOutcome | null;
+  createdAt?: string;
   updatedAt: string;
 }
 

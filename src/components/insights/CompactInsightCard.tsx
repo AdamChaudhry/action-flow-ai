@@ -1,45 +1,50 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { Typography } from '../Typography';
-import { ImportanceBadge } from './ImportanceBadge';
 import { colors } from '../../theme/colors';
 import { spacing, rounded } from '../../theme/spacing';
 import type { Insight } from '../../types/analysis';
 
 interface CompactInsightCardProps {
   insight: Insight;
+  onPress?: () => void;
 }
 
 /**
  * Secondary insight card — compact row layout with importance pill,
  * title, summary, progress bar, and reliability percentage.
  */
-export const CompactInsightCard: React.FC<CompactInsightCardProps> = ({ insight }) => {
+export const CompactInsightCard: React.FC<CompactInsightCardProps> = ({
+  insight,
+  onPress,
+}) => {
   const reliabilityPercent = Math.round(
     insight.confidence <= 1 ? insight.confidence * 100 : insight.confidence,
   );
 
   return (
-    <View style={styles.card}>
-      {/* Header row: importance pill + category */}
-      <View style={styles.headerRow}>
-        <ImportanceBadge level={insight.importance} />
-        <Typography variant="bodySm" color={colors.textSecondary} style={styles.category}>
-          {insight.category}
-        </Typography>
-      </View>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`Insight: ${insight.title}`}
+      style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+      onPress={onPress}
+    >
+      {/* Category label */}
+      <Typography variant="labelSm" color={colors.textSecondary} style={styles.category}>
+        {insight.category.replace(/_/g, ' ')}
+      </Typography>
 
       {/* Title */}
       <Typography variant="headlineMd" style={styles.title}>
         {insight.title}
       </Typography>
 
-      {/* Summary */}
-      <Typography variant="bodySm" color={colors.textSecondary} style={styles.summary}>
-        {insight.summary}
+      {/* Description */}
+      <Typography variant="bodySm" color={colors.textSecondary} style={styles.description}>
+        {insight.description}
       </Typography>
 
-      {/* Reliability bar */}
+      {/* Confidence bar */}
       <View style={styles.footer}>
         <View style={styles.progressTrack}>
           <View style={[styles.progressFill, { width: `${reliabilityPercent}%` }]} />
@@ -48,7 +53,7 @@ export const CompactInsightCard: React.FC<CompactInsightCardProps> = ({ insight 
           {reliabilityPercent}% Reliable
         </Typography>
       </View>
-    </View>
+    </Pressable>
   );
 };
 
@@ -66,19 +71,18 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 1,
   },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.stackSm,
-    flexWrap: 'wrap',
+  cardPressed: {
+    transform: [{ scale: 0.985 }],
+    borderColor: colors.aiBlue,
   },
   category: {
-    flex: 1,
+    textTransform: 'capitalize',
+    marginBottom: 2,
   },
   title: {
     lineHeight: 28,
   },
-  summary: {
+  description: {
     lineHeight: 20,
   },
   footer: {

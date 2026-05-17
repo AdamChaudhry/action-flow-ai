@@ -1,7 +1,6 @@
 import React, { useCallback } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
-import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { InsightsContent } from '../components/insights/InsightsContent';
 import {
@@ -12,14 +11,12 @@ import { InsightsStickyCta } from '../components/insights/InsightsStickyCta';
 import { colors } from '../theme/colors';
 import { useInsights } from '../hooks/useInsights';
 import type { AnalyzeStackParamList } from '../navigation/AnalyzeStackNavigator';
-import type { MainTabParamList } from '../navigation/MainTabNavigator';
 
 type InsightsRouteProp = RouteProp<AnalyzeStackParamList, 'Insights'>;
 type InsightsNavigationProp = NativeStackNavigationProp<
   AnalyzeStackParamList,
   'Insights'
 >;
-type RootTabNavigationProp = BottomTabNavigationProp<MainTabParamList>;
 
 export const InsightsScreen: React.FC = () => {
   const route = useRoute<InsightsRouteProp>();
@@ -28,9 +25,9 @@ export const InsightsScreen: React.FC = () => {
 
   const { insights, isLoading, error, refetch } = useInsights(jobId);
 
-  const navigateToActions = useCallback(() => {
-    navigation.getParent<RootTabNavigationProp>()?.jumpTo('Actions');
-  }, [navigation]);
+  const navigateToImplications = useCallback(() => {
+    navigation.navigate('Implications', { jobId });
+  }, [navigation, jobId]);
 
   if (isLoading && insights.length === 0) {
     return <InsightsLoadingState />;
@@ -63,7 +60,7 @@ export const InsightsScreen: React.FC = () => {
         isRefreshing={isLoading}
         onRefresh={refetch}
       />
-      <InsightsStickyCta onPress={navigateToActions} />
+      <InsightsStickyCta onPress={navigateToImplications} />
     </View>
   );
 };

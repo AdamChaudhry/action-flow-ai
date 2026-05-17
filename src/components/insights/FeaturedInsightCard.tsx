@@ -1,8 +1,7 @@
-import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { Animated, StyleSheet, View } from 'react-native';
 import { Typography } from '../Typography';
 import { ConfidenceBadge } from './ConfidenceBadge';
-import { ImportanceBadge } from './ImportanceBadge';
 import { colors } from '../../theme/colors';
 import { spacing, rounded } from '../../theme/spacing';
 import type { Insight } from '../../types/analysis';
@@ -16,24 +15,52 @@ interface FeaturedInsightCardProps {
  * Shows confidence, category, importance badges, evidence, and explanation.
  */
 export const FeaturedInsightCard: React.FC<FeaturedInsightCardProps> = ({ insight }) => {
+  const opacity = useRef(new Animated.Value(1)).current;
+  const translateY = useRef(new Animated.Value(0)).current;
+  const evidenceItems = Array.isArray(insight.evidence)
+    ? insight.evidence
+    : [insight.evidence].filter(Boolean);
+
+  useEffect(() => {
+    opacity.setValue(0);
+    translateY.setValue(12);
+
+    Animated.parallel([
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+      Animated.timing(translateY, {
+        toValue: 0,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [insight.id, opacity, translateY]);
+
   return (
-    <View style={styles.wrapper}>
+    <Animated.View
+      style={[
+        styles.wrapper,
+        {
+          opacity,
+          transform: [{ translateY }],
+        },
+      ]}
+    >
       {/* Left accent line */}
       <View style={styles.accentBar} />
 
       <View style={styles.body}>
-        {/* Badge row */}
+        {/* Badge row: confidence + category */}
         <View style={styles.badgeRow}>
           <ConfidenceBadge value={insight.confidence} />
           <View style={styles.categoryChip}>
             <Typography variant="labelSm" color={colors.textSecondary}>
-              {insight.category}
+              {insight.category.replace(/_/g, ' ')}
             </Typography>
           </View>
-        </View>
-
-        <View style={styles.importanceRow}>
-          <ImportanceBadge level={insight.importance} featured />
         </View>
 
         {/* Headline */}
@@ -41,23 +68,26 @@ export const FeaturedInsightCard: React.FC<FeaturedInsightCardProps> = ({ insigh
           {insight.title}
         </Typography>
 
-        {/* Evidence */}
-        <Typography variant="labelSm" color={colors.textTertiary} style={styles.sectionLabel}>
-          EVIDENCE
-        </Typography>
-        <Typography variant="bodyMd" color={colors.textSecondary} style={styles.evidenceText}>
-          "{insight.evidence}"
+        {/* Description */}
+        <Typography variant="bodyMd" color={colors.textSecondary} style={styles.description}>
+          {insight.description}
         </Typography>
 
-        {/* Explanation */}
-        <Typography variant="labelSm" color={colors.textTertiary} style={styles.sectionLabel}>
-          EXPLANATION
-        </Typography>
-        <Typography variant="bodyMd" color={colors.textSecondary}>
-          {insight.whyItMatters}
-        </Typography>
+        {/* Evidence */}
+        {evidenceItems.length > 0 && (
+          <>
+            <Typography variant="labelSm" color={colors.textTertiary} style={styles.sectionLabel}>
+              EVIDENCE
+            </Typography>
+            {evidenceItems.map((item, i) => (
+              <Typography key={i} variant="bodyMd" color={colors.textSecondary} style={styles.evidenceText}>
+                "{item}"
+              </Typography>
+            ))}
+          </>
+        )}
       </View>
-    </View>
+    </Animated.View>
   );
 };
 
@@ -98,10 +128,11 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     paddingHorizontal: 10,
   },
-  importanceRow: {
+  title: {
     marginBottom: spacing.stackSm,
   },
-  title: {
+  description: {
+    lineHeight: 24,
     marginBottom: spacing.stackSm,
   },
   sectionLabel: {
