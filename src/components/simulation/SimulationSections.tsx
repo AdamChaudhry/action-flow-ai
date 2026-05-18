@@ -5,80 +5,104 @@ import { Typography } from '../Typography';
 import { colors } from '../../theme/colors';
 import { spacing, rounded } from '../../theme/spacing';
 
-// ─── Assumptions (string[]) ───────────────────────────────────────────────────
+// ─── Shared row ───────────────────────────────────────────────────────────────
 
-export const SimulationAssumptionsSection: React.FC<{ items: string[] }> = ({ items }) => (
-  <View style={section.container}>
-    <Typography variant="headlineMd" style={section.title}>Key Assumptions</Typography>
-    {items.map((item, i) => (
-      <View key={i} style={section.row}>
-        <CheckCircle size={15} color={colors.aiBlue} style={section.icon} />
-        <Typography variant="bodyMd" color={colors.textSecondary} style={section.rowText}>
-          {item}
-        </Typography>
-      </View>
-    ))}
+interface BulletRowProps {
+  icon: React.ReactNode;
+  text: string;
+}
+
+const BulletRow: React.FC<BulletRowProps> = ({ icon, text }) => (
+  <View style={row.container}>
+    <View style={row.icon}>{icon}</View>
+    <Typography variant="bodySm" color={colors.textSecondary} style={row.text}>
+      {text}
+    </Typography>
   </View>
 );
 
-// ─── Risks (string[]) ────────────────────────────────────────────────────────
+const row = StyleSheet.create({
+  container: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.stackSm },
+  icon:      { marginTop: 2 },
+  text:      { flex: 1, lineHeight: 20 },
+});
 
-export const SimulationRisksSection: React.FC<{ items: string[] }> = ({ items }) => (
-  <View style={section.container}>
-    <Typography variant="headlineMd" style={section.title}>Remaining Risks</Typography>
-    {items.map((item, i) => (
-      <View key={i} style={section.row}>
-        <AlertTriangle size={15} color="#D97706" style={section.icon} />
-        <Typography variant="bodyMd" color={colors.textSecondary} style={section.rowText}>
-          {item}
-        </Typography>
-      </View>
-    ))}
+// ─── Shared section wrapper ───────────────────────────────────────────────────
+
+const SectionCard: React.FC<{
+  icon: React.ReactNode;
+  title: string;
+  children: React.ReactNode;
+}> = ({ icon, title, children }) => (
+  <View style={card.container}>
+    <View style={card.header}>
+      {icon}
+      <Typography variant="headlineMd" style={card.title}>{title}</Typography>
+    </View>
+    {children}
   </View>
 );
 
-// ─── Evidence (string[]) ─────────────────────────────────────────────────────
-
-export const SimulationEvidenceSection: React.FC<{ items: string[] }> = ({ items }) => (
-  <View style={section.container}>
-    <Typography variant="headlineMd" style={section.title}>Evidence Used</Typography>
-    {items.map((item, i) => (
-      <View key={i} style={section.row}>
-        <View style={section.evidenceIconBox}>
-          <FileText size={12} color={colors.aiBlue} />
-        </View>
-        <Typography variant="bodyMd" color={colors.textSecondary} style={section.rowText}>
-          {item}
-        </Typography>
-      </View>
-    ))}
-  </View>
-);
-
-// ─── Shared styles ────────────────────────────────────────────────────────────
-
-const section = StyleSheet.create({
+const card = StyleSheet.create({
   container: {
     backgroundColor: colors.surface,
     borderRadius: rounded.xl,
     borderWidth: 1,
     borderColor: colors.border,
     padding: spacing.gutter,
-    gap: 10,
+    gap: spacing.stackSm,
   },
-  title:    { marginBottom: spacing.stackSm },
-  row:      { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.stackSm },
-  icon:     { marginTop: 3 },
-  rowText:  { flex: 1, lineHeight: 22 },
-  evidenceIconBox: {
-    width: 26,
-    height: 26,
-    borderRadius: rounded.sm,
-    backgroundColor: '#EFF6FF',
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 1,
-  },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: spacing.stackSm },
+  title:  { flex: 1 },
 });
+
+// ─── Assumptions ─────────────────────────────────────────────────────────────
+
+export const SimulationAssumptionsSection: React.FC<{ items: string[] }> = ({ items }) => (
+  <SectionCard
+    icon={<CheckCircle size={18} color={colors.aiBlue} />}
+    title="Key Assumptions"
+  >
+    {items.map((item, i) => (
+      <BulletRow
+        key={i}
+        icon={<Typography variant="bodyMd" color={colors.aiBlue}>→</Typography>}
+        text={item}
+      />
+    ))}
+  </SectionCard>
+);
+
+// ─── Risks ────────────────────────────────────────────────────────────────────
+
+export const SimulationRisksSection: React.FC<{ items: string[] }> = ({ items }) => (
+  <SectionCard
+    icon={<AlertTriangle size={18} color="#D97706" />}
+    title="Remaining Risks"
+  >
+    {items.map((item, i) => (
+      <BulletRow
+        key={i}
+        icon={<Typography variant="bodyMd" color="#D97706">→</Typography>}
+        text={item}
+      />
+    ))}
+  </SectionCard>
+);
+
+// ─── Evidence ─────────────────────────────────────────────────────────────────
+
+export const SimulationEvidenceSection: React.FC<{ items: string[] }> = ({ items }) => (
+  <SectionCard
+    icon={<FileText size={18} color={colors.textSecondary} />}
+    title="Evidence Used"
+  >
+    {items.map((item, i) => (
+      <BulletRow
+        key={i}
+        icon={<Typography variant="bodyMd" color={colors.textTertiary}>→</Typography>}
+        text={item}
+      />
+    ))}
+  </SectionCard>
+);

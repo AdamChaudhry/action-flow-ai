@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, TouchableOpacity } from 'react-native';
+import { Pressable, View, StyleSheet, TouchableOpacity } from 'react-native';
 import { Typography } from '../Typography';
 import { colors } from '../../theme/colors';
 import { spacing, rounded } from '../../theme/spacing';
@@ -32,6 +32,7 @@ const chip = StyleSheet.create({
 
 interface CompactActionCardProps {
   action: RecommendedAction;
+  onPress?: () => void;
   onReviewLogic?: () => void;
   onDismiss?: () => void;
 }
@@ -42,10 +43,16 @@ interface CompactActionCardProps {
  */
 export const CompactActionCard: React.FC<CompactActionCardProps> = ({
   action,
+  onPress,
   onReviewLogic,
   onDismiss,
 }) => (
-  <View style={styles.card}>
+  <Pressable
+    accessibilityRole="button"
+    accessibilityLabel={`Feature action: ${action.title}`}
+    style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+    onPress={onPress}
+  >
     {/* ── Header: priority chip ─────────────── */}
     <PriorityChip priority={action.priority} />
 
@@ -72,7 +79,7 @@ export const CompactActionCard: React.FC<CompactActionCardProps> = ({
         </Typography>
       </TouchableOpacity>
     </View>
-  </View>
+  </Pressable>
 );
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
@@ -90,6 +97,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.03,
     shadowRadius: 8,
     elevation: 1,
+  },
+  cardPressed: {
+    transform: [{ scale: 0.985 }],
+    borderColor: colors.aiBlue,
   },
   title: {
     lineHeight: 24,

@@ -1,77 +1,96 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { TrendingUp, TrendingDown, Minus } from 'lucide-react-native';
+import { FileText } from 'lucide-react-native';
 import { Typography } from '../Typography';
 import { colors } from '../../theme/colors';
 import { spacing, rounded } from '../../theme/spacing';
 import type { SimulatedChange } from '../../types/analysis';
 
-// ─── Change badge ─────────────────────────────────────────────────────────────
+// ─── Direction badge ──────────────────────────────────────────────────────────
 
-type ChangeType = 'increase' | 'decrease' | 'no_change' | 'unknown';
+type Direction = SimulatedChange['direction'];
 
-const CHANGE_TOKEN: Record<ChangeType, { bg: string; text: string; Icon: typeof TrendingUp; label: string }> = {
-  increase:  { bg: '#D1FAE5', text: '#059669', Icon: TrendingUp,  label: 'Increase' },
-  decrease:  { bg: '#FEE2E2', text: '#DC2626', Icon: TrendingDown, label: 'Decrease' },
-  no_change: { bg: '#F1F5F9', text: '#64748B', Icon: Minus,        label: 'No Change' },
-  unknown:   { bg: '#F1F5F9', text: '#64748B', Icon: Minus,        label: 'Unknown' },
+const DIRECTION_TOKEN: Record<Direction, { bg: string; text: string }> = {
+  increase:  { bg: '#D1FAE5', text: '#059669' },
+  decrease:  { bg: '#FEE2E2', text: '#DC2626' },
+  no_change: { bg: '#F1F5F9', text: '#64748B' },
+  unknown:   { bg: '#F1F5F9', text: '#64748B' },
 };
 
-const ChangeBadge: React.FC<{ direction: ChangeType; confidence: number }> = ({ direction, confidence }) => {
-  const token = CHANGE_TOKEN[direction];
-  const { Icon } = token;
-  const pct = Math.round(confidence * 100);
-  return (
-    <View style={[badge.container, { backgroundColor: token.bg }]}>
-      <Icon size={11} color={token.text} />
-      <Typography variant="labelSm" color={token.text}>{token.label}</Typography>
-      <Typography variant="labelSm" color={token.text} style={badge.conf}>({pct}%)</Typography>
-    </View>
-  );
-};
+/** Formats the `after` value as a human-readable label */
+function directionLabel(after: SimulatedChange['after']): string {
+  if (after === null || after === undefined) { return 'Unknown'; }
+  const s = String(after);
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
 
-const badge = StyleSheet.create({
-  container: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: rounded.full, paddingVertical: 3, paddingHorizontal: 8, alignSelf: 'flex-start' },
-  conf: { opacity: 0.75 },
-});
+// ─── Metric name formatter ────────────────────────────────────────────────────
 
-// ─── Metric Transition Card ───────────────────────────────────────────────────
+function formatMetricName(metric: string): string {
+  return metric
+    .replace(/([A-Z])/g, ' $1')
+    .replace(/_/g, ' ')
+    .trim()
+    .replace(/\b\w/g, c => c.toUpperCase());
+}
+
+// ─── Card ─────────────────────────────────────────────────────────────────────
 
 interface MetricTransitionCardProps {
   change: SimulatedChange;
 }
 
 /**
- * Renders a single SimulatedChange from the API:
- * metric label, before → after values, direction badge, rationale.
+ * Renders one SimulatedChange per the updated design:
+ * - Row: metric name + "XX% Conf" badge
+ * - "Unknown → Improved" with arrow
+ * - Rationale text
  */
-export const MetricTransitionCard: React.FC<MetricTransitionCardProps> = ({ change }) => (
-  <View style={styles.card}>
-    {/* Header */}
-    <View style={styles.headerRow}>
-      <Typography variant="headlineMd" style={styles.metric}>{change.metric}</Typography>
-      <ChangeBadge direction={change.direction} confidence={change.confidence} />
-    </View>
+export const MetricTransitionCard: React.FC<MetricTransitionCardProps> = ({ change }) => {
+  const token = DIRECTION_TOKEN[change.direction];
+  const pct   = Math.round(change.confidence * 100);
+  const label = directionLabel(change.after);
+  const beforeLabel = change.before === null || change.before === undefined
+    ? 'Unknown'
+    : String(change.before).charAt(0).toUpperCase() + String(change.before).slice(1);
 
-    {/* Before → After */}
-    <View style={styles.transitionRow}>
-      <View style={styles.transitionItem}>
-        <Typography variant="labelSm" color={colors.textTertiary} style={styles.transitionLabel}>BEFORE</Typography>
-        <Typography variant="bodyMd" color={colors.textSecondary}>{String(change.before ?? '—')}</Typography>
+  return (
+    <View style={styles.card}>
+      {/* Header: metric name + confidence badge */}
+      <View style={styles.headerRow}>
+        <Typography variant="headlineMd" style={styles.metricName}>
+          {formatMetricName(change.metric)}
+        </Typography>
+        <View style={[styles.confBadge, { backgroundColor: token.bg }]}>
+          <Typography variant="labelSm" color={token.text}>
+            {pct}% Conf
+          </Typography>
+        </View>
       </View>
-      <Typography variant="labelSm" color={colors.textTertiary} style={styles.arrow}>→</Typography>
-      <View style={styles.transitionItem}>
-        <Typography variant="labelSm" color={colors.textTertiary} style={styles.transitionLabel}>AFTER</Typography>
-        <Typography variant="bodyMd" color={colors.aiBlue} style={styles.afterValue}>{String(change.after ?? '—')}</Typography>
+
+      {/* Before → After */}
+      <View style={styles.transitionRow}>
+        <Typography variant="bodyMd" color={colors.textSecondary}>
+          {beforeLabel}
+        </Typography>
+        <Typography variant="bodyMd" color={colors.textSecondary} style={styles.arrow}>
+          →
+        </Typography>
+        <Typography variant="bodyMd" color={token.text} style={styles.afterLabel}>
+          {label}
+        </Typography>
+      </View>
+
+      {/* Rationale */}
+      <View style={styles.rationaleRow}>
+        <FileText size={12} color={colors.textTertiary} />
+        <Typography variant="bodySm" color={colors.textSecondary} style={styles.rationale}>
+          {change.rationale}
+        </Typography>
       </View>
     </View>
-
-    {/* Rationale */}
-    <Typography variant="bodySm" color={colors.textSecondary} style={styles.rationale}>
-      {change.rationale}
-    </Typography>
-  </View>
-);
+  );
+};
 
 const styles = StyleSheet.create({
   card: {
@@ -82,12 +101,40 @@ const styles = StyleSheet.create({
     padding: spacing.gutter,
     gap: spacing.stackSm,
   },
-  headerRow:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: spacing.stackSm },
-  metric:         { flex: 1, textTransform: 'capitalize' },
-  transitionRow:  { flexDirection: 'row', alignItems: 'center', gap: spacing.stackMd },
-  transitionItem: { gap: 2 },
-  transitionLabel:{ letterSpacing: 0.5 },
-  arrow:          { paddingTop: 14 },
-  afterValue:     { fontWeight: '600' },
-  rationale:      { lineHeight: 18, marginTop: spacing.stackSm },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: spacing.stackSm,
+    flexWrap: 'wrap',
+  },
+  metricName: {
+    flex: 1,
+  },
+  confBadge: {
+    borderRadius: rounded.full,
+    paddingVertical: 3,
+    paddingHorizontal: 10,
+  },
+  transitionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.stackSm,
+  },
+  arrow: {
+    color: colors.textTertiary,
+  },
+  afterLabel: {
+    fontWeight: '600',
+  },
+  rationaleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+    marginTop: 2,
+  },
+  rationale: {
+    flex: 1,
+    lineHeight: 18,
+  },
 });

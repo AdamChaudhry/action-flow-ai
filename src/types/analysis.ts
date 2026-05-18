@@ -111,7 +111,7 @@ export interface RecommendedAction {
   relatedImplicationIds: string[];
   title: string;
   description: string;
-  actionType: ActionType;
+  actionType: ActionType | string;
   priority: ActionPriority;
   requiresHumanApproval: boolean;
   expectedImpact: string;
@@ -144,20 +144,20 @@ export interface ActionSimulation {
   actionTitle: string;
   actionType: ActionType;
   parameters: Record<string, unknown>;
-  estimatedRisk: 'low' | 'medium' | 'high';
+  estimatedRisk: 'low' | 'medium' | 'high' | string;
   requiresHumanApproval: boolean;
 
   // Before / After (LLM-generated)
-  beforeState: Record<string, unknown>;
-  simulatedAfterState: Record<string, unknown>;
-  expectedChanges: SimulatedChange[];
+  beforeState?: Record<string, unknown>;
+  simulatedAfterState?: Record<string, unknown>;
+  expectedChanges?: SimulatedChange[];
 
   // Quality metadata
   projectedOutcome: string;
-  confidence: number;     // 0.0 – 1.0
-  assumptions: string[];
-  risks: string[];
-  evidenceUsed: string[];
+  confidence?: number;     // 0.0 – 1.0
+  assumptions?: string[];
+  risks?: string[];
+  evidenceUsed?: string[];
 }
 
 /** Wrapper document stored in the simulations collection */

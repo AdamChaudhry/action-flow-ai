@@ -8,6 +8,7 @@ import {
 } from '../components/actions/ActionsStateView';
 import { useRecommendedActions } from '../hooks/useRecommendedActions';
 import { useSubmitSimulation } from '../hooks/useSubmitSimulation';
+import { useActionsJobId } from '../navigation/ActionsJobContext';
 import type { ActionsStackParamList } from '../navigation/ActionsStackNavigator';
 
 type ActionsNavProp = NativeStackNavigationProp<ActionsStackParamList, 'ActionsList'>;
@@ -16,7 +17,8 @@ type ActionsRouteProp = RouteProp<ActionsStackParamList, 'ActionsList'>;
 export const ActionsScreen: React.FC = () => {
   const route      = useRoute<ActionsRouteProp>();
   const navigation = useNavigation<ActionsNavProp>();
-  const jobId      = route.params?.jobId;
+  const contextJobId = useActionsJobId();
+  const jobId = contextJobId ?? route.params?.jobId;
 
   const { actions, isLoading, error, refetch } = useRecommendedActions(jobId);
   const { triggerSimulation, isSubmitting }     = useSubmitSimulation();

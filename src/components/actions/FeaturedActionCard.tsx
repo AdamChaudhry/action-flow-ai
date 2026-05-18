@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
+  Animated,
   View,
   StyleSheet,
   TouchableOpacity,
@@ -157,12 +158,40 @@ interface FeaturedActionCardProps {
  * description quote block, and Approve/Simulate/Edit/Reject buttons.
  */
 export const FeaturedActionCard: React.FC<FeaturedActionCardProps> = ({ action, onSimulate, isSimulating }) => {
+  const opacity = useRef(new Animated.Value(1)).current;
+  const translateY = useRef(new Animated.Value(0)).current;
   const impactLevel = deriveImpactLevel(action.expectedImpact);
   const effortLevel = deriveEffortLevel(action.priority);
   const riskLevel   = deriveRiskLevel(action.priority);
 
+  useEffect(() => {
+    opacity.setValue(0);
+    translateY.setValue(12);
+
+    Animated.parallel([
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+      Animated.timing(translateY, {
+        toValue: 0,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [action.id, opacity, translateY]);
+
   return (
-    <View style={styles.card}>
+    <Animated.View
+      style={[
+        styles.card,
+        {
+          opacity,
+          transform: [{ translateY }],
+        },
+      ]}
+    >
       {/* ── Priority badge ───────────────── */}
       <PriorityBadge priority={action.priority} />
 
@@ -196,7 +225,7 @@ export const FeaturedActionCard: React.FC<FeaturedActionCardProps> = ({ action, 
         onSimulate={onSimulate}
         isSimulating={isSimulating}
       />
-    </View>
+    </Animated.View>
   );
 };
 

@@ -23,21 +23,39 @@ export function useRecommendedActions(
   const refetch = () => setTick(n => n + 1);
 
   useEffect(() => {
-    if (!jobId) { return; }
+    let isActive = true;
+
+    setActions([]);
+
+    if (!jobId) {
+      setIsLoading(false);
+      setError(null);
+      return;
+    }
 
     setIsLoading(true);
     setError(null);
 
     getAnalysisResult(jobId)
       .then(result => {
-        setActions(result.recommendedActions ?? []);
+        if (isActive) {
+          setActions(result.recommendedActions ?? []);
+        }
       })
       .catch(err => {
-        setError(err instanceof Error ? err.message : 'Failed to load actions.');
+        if (isActive) {
+          setError(err instanceof Error ? err.message : 'Failed to load actions.');
+        }
       })
       .finally(() => {
-        setIsLoading(false);
+        if (isActive) {
+          setIsLoading(false);
+        }
       });
+
+    return () => {
+      isActive = false;
+    };
   }, [jobId, tick]);
 
   return { actions, isLoading, error, refetch };

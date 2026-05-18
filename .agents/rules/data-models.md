@@ -332,6 +332,24 @@ interface ActionSimulation {
 
 ---
 
+### SimulationRecord
+
+Returned by the simulate APIs. Each record stores the persisted action simulation.
+
+```typescript
+interface SimulationRecord {
+  id: string;
+  jobId: string;
+  actionId: string;
+  simulation: ActionSimulation;
+  createdAt: Date;
+}
+```
+
+The original baseline metrics are stored inside `simulation.beforeState`.
+
+---
+
 ### PendingApproval
 
 Produced by **Node 6 — ApprovalOrExecutionNode** for actions where `requiresHumanApproval = true`.

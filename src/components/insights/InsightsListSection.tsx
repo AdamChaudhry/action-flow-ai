@@ -1,9 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   LayoutAnimation,
-  Platform,
   StyleSheet,
-  UIManager,
   View,
 } from 'react-native';
 import type { Insight } from '../../types/analysis';
@@ -22,15 +20,6 @@ export const InsightsListSection: React.FC<InsightsListSectionProps> = ({
   const [featuredInsightId, setFeaturedInsightId] = useState<string | null>(
     insights[0]?.id ?? null,
   );
-
-  useEffect(() => {
-    if (
-      Platform.OS === 'android' &&
-      UIManager.setLayoutAnimationEnabledExperimental
-    ) {
-      UIManager.setLayoutAnimationEnabledExperimental(true);
-    }
-  }, []);
 
   useEffect(() => {
     if (!insights.length) {

@@ -1,116 +1,84 @@
-import React, { useEffect, useRef } from 'react';
-import { View, StyleSheet, Animated } from 'react-native';
-import { CheckCircle } from 'lucide-react-native';
+import React from 'react';
+import { View, StyleSheet } from 'react-native';
 import { Typography } from '../Typography';
+import { colors } from '../../theme/colors';
 import { spacing, rounded } from '../../theme/spacing';
 
-// ─── Animated confidence ring ─────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-/** @param value — confidence from the API: 0.0 – 1.0 */
-const ConfidenceRing: React.FC<{ value: number }> = ({ value }) => {
-  const scale = useRef(new Animated.Value(0.8)).current;
-  const pct = Math.round(value * 100);
+function formatSimulationId(rawId: string): string {
+  // Show last 8 chars formatted as "SF-XXXX-XX"
+  const clean = rawId.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+  const short  = clean.slice(-8).padStart(8, '0');
+  return `SF-${short.slice(0, 4)}-${short.slice(4)}`;
+}
 
-  useEffect(() => {
-    Animated.spring(scale, { toValue: 1, useNativeDriver: true, tension: 60, friction: 7 }).start();
-  }, [scale]);
+// ─── Component ────────────────────────────────────────────────────────────────
+
+interface SimulationHeroCardProps {
+  actionId: string;
+  actionTitle: string;
+  /** confidence from ActionSimulation — 0.0 to 1.0 */
+  confidence: number;
+}
+
+/**
+ * Light-background header card that matches the updated design:
+ * - Small "SIMULATION ID" label
+ * - Large bold title "Simulation Result: <actionTitle>"
+ * - Dark pill badge showing confidence %
+ */
+export const SimulationHeroCard: React.FC<SimulationHeroCardProps> = ({
+  actionId,
+  actionTitle,
+  confidence,
+}) => {
+  const pct = Math.round(confidence * 100);
+  const simId = formatSimulationId(actionId);
 
   return (
-    <Animated.View style={[ring.container, { transform: [{ scale }] }]}>
-      <View style={ring.circle}>
-        <Typography variant="headlineLg" color="#FFFFFF" style={ring.percent}>
-          {pct}%
-        </Typography>
-        <Typography variant="labelSm" color="rgba(255,255,255,0.7)" style={ring.label}>
-          CONFIDENCE
+    <View style={styles.card}>
+      {/* Simulation ID label */}
+      <Typography variant="labelSm" color={colors.textTertiary} style={styles.idLabel}>
+        SIMULATION ID: {simId}
+      </Typography>
+
+      {/* Main title */}
+      <Typography variant="headlineLg" style={styles.title}>
+        Simulation Result: {actionTitle}
+      </Typography>
+
+      {/* Confidence pill */}
+      <View style={styles.confidenceBadge}>
+        <Typography variant="labelMd" color="#FFFFFF">
+          {pct}% Confidence
         </Typography>
       </View>
-    </Animated.View>
+    </View>
   );
 };
 
-const ring = StyleSheet.create({
-  container: { alignItems: 'center', marginVertical: spacing.stackMd },
-  circle: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    borderWidth: 3,
-    borderColor: 'rgba(255,255,255,0.4)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  percent: { fontWeight: '700', lineHeight: 32 },
-  label:   { letterSpacing: 0.8, marginTop: 2 },
-});
-
-// ─── Hero card ────────────────────────────────────────────────────────────────
-
-interface SimulationHeroCardProps {
-  actionTitle: string;
-  projectedOutcome: string;
-  /** confidence from ActionSimulation — 0.0 to 1.0 */
-  confidence: number;
-  actionId: string;
-}
-
-export const SimulationHeroCard: React.FC<SimulationHeroCardProps> = ({
-  actionTitle,
-  projectedOutcome,
-  confidence,
-  actionId,
-}) => (
-  <View style={styles.card}>
-    {/* Status row */}
-    <View style={styles.statusRow}>
-      <View style={styles.successBadge}>
-        <CheckCircle size={12} color="#059669" />
-        <Typography variant="labelSm" color="#059669">Simulation Success</Typography>
-      </View>
-      <Typography variant="labelSm" color="rgba(255,255,255,0.5)">
-        ID: {actionId.toUpperCase()}
-      </Typography>
-    </View>
-
-    {/* Title */}
-    <Typography variant="headlineLg" color="#FFFFFF" style={styles.title}>
-      {actionTitle}
-    </Typography>
-
-    {/* Projected outcome */}
-    <Typography variant="bodyMd" color="rgba(255,255,255,0.75)" style={styles.outcome}>
-      {projectedOutcome}
-    </Typography>
-
-    {/* Confidence ring */}
-    <ConfidenceRing value={confidence} />
-  </View>
-);
-
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#0D1B4B',
+    backgroundColor: colors.surface,
     borderRadius: rounded.xl,
-    padding: spacing.gutter,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: colors.border,
+    padding: spacing.gutter,
+    gap: spacing.stackSm,
   },
-  statusRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.stackMd,
+  idLabel: {
+    letterSpacing: 0.5,
   },
-  successBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: '#ECFDF5',
+  title: {
+    lineHeight: 34,
+  },
+  confidenceBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: colors.primary,
     borderRadius: rounded.full,
-    paddingVertical: 3,
-    paddingHorizontal: 10,
+    paddingVertical: 5,
+    paddingHorizontal: 14,
+    marginTop: 4,
   },
-  title:   { lineHeight: 32, marginBottom: spacing.stackSm },
-  outcome: { lineHeight: 22 },
 });
