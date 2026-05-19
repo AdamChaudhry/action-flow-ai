@@ -1,10 +1,10 @@
 import React from 'react';
-import { TouchableOpacity, View, StyleSheet } from 'react-native';
+import { Image, TouchableOpacity, View, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Typography } from './Typography';
 import { colors } from '../theme/colors';
 import { rounded, spacing } from '../theme/spacing';
-import { PlusCircle, Share2 } from 'lucide-react-native';
+import { PlusCircle } from 'lucide-react-native';
 
 interface HeaderProps {
   onStartAnalysis: () => void;
@@ -16,7 +16,11 @@ export const Header: React.FC<HeaderProps> = ({ onStartAnalysis }) => {
   return (
     <View style={[styles.container, { paddingTop: Math.max(insets.top, spacing.stackMd) }]}>
       <View style={styles.left}>
-        <Share2 size={20} color={colors.primary} />
+        <Image
+          source={require('../assets/actionflow-logo.png')}
+          style={styles.logo}
+          resizeMode="contain"
+        />
         <Typography variant="headlineMd" style={styles.title}>
           ActionFlow AI
         </Typography>
@@ -49,6 +53,11 @@ const styles = StyleSheet.create({
   left: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  logo: {
+    width: 28,
+    height: 28,
+    borderRadius: rounded.sm,
   },
   title: {
     marginLeft: spacing.stackSm,
