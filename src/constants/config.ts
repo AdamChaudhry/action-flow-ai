@@ -1,5 +1,5 @@
-const CLOUD_API_ORIGIN = 'http://192.168.1.104:3000';
-// const CLOUD_API_ORIGIN = 'https://actionflow-api-203281358607.us-central1.run.app';
+// const CLOUD_API_ORIGIN = 'http://192.168.1.104:3000';
+const CLOUD_API_ORIGIN = 'https://actionflow-api-203281358607.us-central1.run.app';
 
 const API_ORIGIN = CLOUD_API_ORIGIN;
 
