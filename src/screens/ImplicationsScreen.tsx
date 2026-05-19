@@ -8,7 +8,7 @@ import {
   ImplicationsFeedbackState,
   ImplicationsLoadingState,
 } from '../components/implications/ImplicationsStateView';
-import { ImplicationsStickyCta } from '../components/implications/ImplicationsStickyCta';
+import { StickyPageActions } from '../components/StickyPageActions';
 import { colors } from '../theme/colors';
 import { useImplications } from '../hooks/useImplications';
 import type { AnalyzeStackParamList } from '../navigation/AnalyzeStackNavigator';
@@ -63,7 +63,12 @@ export const ImplicationsScreen: React.FC = () => {
         isRefreshing={isLoading}
         onRefresh={refetch}
       />
-      <ImplicationsStickyCta onPress={navigateToActions} />
+      <StickyPageActions
+        previousTitle="Insights"
+        nextTitle="Actions"
+        onPrevious={navigation.goBack}
+        onNext={navigateToActions}
+      />
     </View>
   );
 };

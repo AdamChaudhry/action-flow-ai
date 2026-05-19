@@ -1,18 +1,33 @@
 import React from 'react';
 import { StatusBar, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { NavigationContainer } from '@react-navigation/native';
-import { MainTabNavigator } from './src/navigation/MainTabNavigator';
+import { createNavigationContainerRef, NavigationContainer } from '@react-navigation/native';
+import {
+  MainTabNavigator,
+  type MainTabParamList,
+} from './src/navigation/MainTabNavigator';
 import { Header } from './src/components/Header';
 import { colors } from './src/theme/colors';
 
+const navigationRef = createNavigationContainerRef<MainTabParamList>();
+
 function App() {
+  const handleStartAnalysis = React.useCallback(() => {
+    if (!navigationRef.isReady()) {
+      return;
+    }
+
+    navigationRef.navigate('Analyze', {
+      screen: 'AnalyzeInput',
+    });
+  }, []);
+
   return (
     <SafeAreaProvider>
-      <NavigationContainer>
+      <NavigationContainer ref={navigationRef}>
         <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
         <View style={styles.container}>
-          <Header />
+          <Header onStartAnalysis={handleStartAnalysis} />
           <MainTabNavigator />
         </View>
       </NavigationContainer>

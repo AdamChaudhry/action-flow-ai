@@ -191,7 +191,11 @@ export type WsEventType =
   | 'content_normalized'
   | 'node_started'
   | 'content_analyzed'
+  | 'actions_routed'
+  | 'simulation_ready'
   | 'awaiting_approval'
+  | 'actions_queued'
+  | 'workflow_completed'
   | 'action_simulated'
   | 'outcome_updated'
   | 'workflow_failed';

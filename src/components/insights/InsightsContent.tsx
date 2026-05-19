@@ -3,6 +3,7 @@ import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import type { Insight } from '../../types/analysis';
 import { colors } from '../../theme/colors';
 import { spacing } from '../../theme/spacing';
+import { STICKY_PAGE_ACTIONS_HEIGHT } from '../StickyPageActions';
 import { InsightsListSection } from './InsightsListSection';
 
 interface InsightsContentProps {
@@ -42,6 +43,6 @@ const styles = StyleSheet.create({
     gap: spacing.stackMd,
   },
   bottomSpacer: {
-    height: 80,
+    height: STICKY_PAGE_ACTIONS_HEIGHT,
   },
 });

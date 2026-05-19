@@ -3,6 +3,8 @@ import type { WsEventType, WsMessage } from '../types/analysis';
 
 type MessageHandler = (msg: WsMessage) => void;
 type ErrorHandler = () => void;
+type TerminalStatus = 'success' | 'failed';
+type TerminalHandler = (msg: WsMessage, status: TerminalStatus) => void;
 
 /**
  * Manages the WebSocket connection for a single analysis job.
@@ -10,8 +12,11 @@ type ErrorHandler = () => void;
  */
 export class AnalysisWebSocketClient {
   private ws: WebSocket | null = null;
-  private readonly terminalEvents: WsEventType[] = [
+  private readonly successfulTerminalEvents: WsEventType[] = [
     'awaiting_approval',
+    'workflow_completed',
+  ];
+  private readonly failedTerminalEvents: WsEventType[] = [
     'workflow_failed',
   ];
 
@@ -19,6 +24,7 @@ export class AnalysisWebSocketClient {
     jobId: string,
     onMessage: MessageHandler,
     onError: ErrorHandler = () => {},
+    onTerminal: TerminalHandler = () => {},
   ): void {
     if (this.ws) {
       this.disconnect();
@@ -38,9 +44,12 @@ export class AnalysisWebSocketClient {
     this.ws.onmessage = event => {
       try {
         const msg = JSON.parse(event.data as string) as WsMessage;
+        const terminalStatus = this.resolveTerminalStatus(msg.type);
+
         onMessage(msg);
 
-        if (this.terminalEvents.includes(msg.type)) {
+        if (terminalStatus) {
+          onTerminal(msg, terminalStatus);
           this.disconnect();
         }
       } catch {
@@ -64,5 +73,17 @@ export class AnalysisWebSocketClient {
 
   get isConnected(): boolean {
     return this.ws?.readyState === WebSocket.OPEN;
+  }
+
+  private resolveTerminalStatus(type: WsEventType): TerminalStatus | null {
+    if (this.successfulTerminalEvents.includes(type)) {
+      return 'success';
+    }
+
+    if (this.failedTerminalEvents.includes(type)) {
+      return 'failed';
+    }
+
+    return null;
   }
 }

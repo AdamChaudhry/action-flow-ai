@@ -8,6 +8,7 @@ import type {
   ContentNormalizedPayload,
   JobStartedPayload,
   NodeStartedPayload,
+  WorkflowCompletedPayload,
   WorkflowFailedPayload,
   WsMessage,
 } from '../types/analysis';
@@ -34,6 +35,9 @@ export interface WorkflowStep {
 }
 
 type JobState = 'processing' | 'completed' | 'failed';
+type TerminalStatus = 'success' | 'failed';
+const JOB_POLL_INTERVAL_MS = 2500;
+const TERMINAL_JOB_STATUSES = ['completed', 'waiting_for_user', 'failed'];
 
 const INITIAL_STEPS: WorkflowStep[] = [
   {
@@ -75,6 +79,16 @@ export function useAnalysisJob(jobId: string | undefined): UseAnalysisJobResult 
   >(null);
 
   const clientRef = useRef(new AnalysisWebSocketClient());
+  const isTerminalRef = useRef(false);
+
+  const resetState = useCallback(() => {
+    isTerminalRef.current = false;
+    setSteps(INITIAL_STEPS);
+    setProgress(0);
+    setJobState('processing');
+    setErrorMessage(null);
+    setClarificationQuestion(null);
+  }, []);
 
   const markStepActive = useCallback((stepIndex: number) => {
     setSteps(prev =>
@@ -99,6 +113,7 @@ export function useAnalysisJob(jobId: string | undefined): UseAnalysisJobResult 
   }, []);
 
   const markAllCompleted = useCallback(() => {
+    isTerminalRef.current = true;
     setSteps(prev => prev.map(step => ({ ...step, status: 'completed' })));
     setProgress(100);
     setJobState('completed');
@@ -106,6 +121,10 @@ export function useAnalysisJob(jobId: string | undefined): UseAnalysisJobResult 
 
   const applyJobSnapshot = useCallback(
     (job: AnalysisJob) => {
+      if (isTerminalRef.current && !TERMINAL_JOB_STATUSES.includes(job.status)) {
+        return;
+      }
+
       setProgress(job.progress);
       setErrorMessage(job.error);
       setClarificationQuestion(job.clarificationQuestion);
@@ -121,9 +140,12 @@ export function useAnalysisJob(jobId: string | undefined): UseAnalysisJobResult 
       }
 
       if (job.status === 'failed') {
+        isTerminalRef.current = true;
         setJobState('failed');
         return;
       }
+
+      setJobState('processing');
 
       if (job.currentNode) {
         const index = NODE_INDEX_MAP[job.currentNode];
@@ -180,8 +202,7 @@ export function useAnalysisJob(jobId: string | undefined): UseAnalysisJobResult 
 
         case 'content_analyzed': {
           const payload = msg.payload as ContentAnalyzedPayload;
-          markStepCompleted(2);
-          setProgress(60);
+          markAllCompleted();
           if (payload.actionCount >= 0) {
             setErrorMessage(null);
           }
@@ -197,8 +218,16 @@ export function useAnalysisJob(jobId: string | undefined): UseAnalysisJobResult 
           break;
         }
 
+        case 'workflow_completed': {
+          const payload = msg.payload as WorkflowCompletedPayload;
+          markAllCompleted();
+          setClarificationQuestion(payload.outcome.summary);
+          break;
+        }
+
         case 'workflow_failed': {
           const { error } = msg.payload as WorkflowFailedPayload;
+          isTerminalRef.current = true;
           setErrorMessage(error?.message ?? 'Analysis failed.');
           setJobState('failed');
           break;
@@ -211,35 +240,71 @@ export function useAnalysisJob(jobId: string | undefined): UseAnalysisJobResult 
     [activateNode, markAllCompleted, markStepCompleted],
   );
 
+  const handleTerminalMessage = useCallback(
+    (msg: WsMessage, status: TerminalStatus) => {
+      if (status === 'success') {
+        markAllCompleted();
+        return;
+      }
+
+      const payload = msg.payload as Partial<WorkflowFailedPayload>;
+      isTerminalRef.current = true;
+      setErrorMessage(payload.error?.message ?? 'Analysis failed.');
+      setJobState('failed');
+    },
+    [markAllCompleted],
+  );
+
   useEffect(() => {
     if (!jobId) {
+      resetState();
       return;
     }
 
     let isMounted = true;
+    let pollTimer: ReturnType<typeof setInterval> | undefined;
+    resetState();
 
-    getAnalysisJob(jobId)
-      .then(job => {
-        if (isMounted) {
-          applyJobSnapshot(job);
-        }
-      })
-      .catch(error => {
-        if (isMounted) {
-          setErrorMessage(
-            error instanceof Error ? error.message : 'Could not load job.',
-          );
-        }
-      });
+    const loadJobSnapshot = () => {
+      getAnalysisJob(jobId)
+        .then(job => {
+          if (isMounted) {
+            applyJobSnapshot(job);
+            if (TERMINAL_JOB_STATUSES.includes(job.status)) {
+              if (pollTimer) {
+                clearInterval(pollTimer);
+              }
+            }
+          }
+        })
+        .catch(error => {
+          if (isMounted) {
+            setErrorMessage(
+              error instanceof Error ? error.message : 'Could not load job.',
+            );
+          }
+        });
+    };
+
+    loadJobSnapshot();
+    pollTimer = setInterval(loadJobSnapshot, JOB_POLL_INTERVAL_MS);
 
     const client = clientRef.current;
-    client.connect(jobId, handleMessage);
+    client.connect(
+      jobId,
+      handleMessage,
+      undefined,
+      handleTerminalMessage,
+    );
 
     return () => {
       isMounted = false;
+      if (pollTimer) {
+        clearInterval(pollTimer);
+      }
       client.disconnect();
     };
-  }, [applyJobSnapshot, handleMessage, jobId]);
+  }, [applyJobSnapshot, handleMessage, handleTerminalMessage, jobId, resetState]);
 
   const activeStep = steps.find(step => step.status === 'active');
 

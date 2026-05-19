@@ -1,12 +1,16 @@
 import React from 'react';
-import { View, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { TouchableOpacity, View, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Typography } from './Typography';
 import { colors } from '../theme/colors';
-import { spacing } from '../theme/spacing';
-import { Search, Share2 } from 'lucide-react-native';
+import { rounded, spacing } from '../theme/spacing';
+import { PlusCircle, Share2 } from 'lucide-react-native';
 
-export const Header: React.FC = () => {
+interface HeaderProps {
+  onStartAnalysis: () => void;
+}
+
+export const Header: React.FC<HeaderProps> = ({ onStartAnalysis }) => {
   const insets = useSafeAreaInsets();
 
   return (
@@ -17,15 +21,18 @@ export const Header: React.FC = () => {
           ActionFlow AI
         </Typography>
       </View>
-      <View style={styles.right}>
-        <TouchableOpacity style={styles.iconButton}>
-          <Search size={20} color={colors.textSecondary} />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.avatarContainer}>
-          {/* Placeholder avatar, normally would use Image component with source */}
-          <View style={styles.avatarPlaceholder} />
-        </TouchableOpacity>
-      </View>
+      <TouchableOpacity
+        accessibilityRole="button"
+        accessibilityLabel="Start analysis"
+        style={styles.startButton}
+        activeOpacity={0.8}
+        onPress={onStartAnalysis}
+      >
+        <PlusCircle size={16} color={colors.primaryInverse} />
+        <Typography variant="labelMd" color={colors.primaryInverse}>
+          Start Analysis
+        </Typography>
+      </TouchableOpacity>
     </View>
   );
 };
@@ -46,20 +53,13 @@ const styles = StyleSheet.create({
   title: {
     marginLeft: spacing.stackSm,
   },
-  right: {
+  startButton: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  iconButton: {
-    padding: spacing.stackSm,
-  },
-  avatarContainer: {
-    marginLeft: spacing.stackSm,
-  },
-  avatarPlaceholder: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.border,
+    gap: 6,
+    backgroundColor: colors.primary,
+    borderRadius: rounded.full,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
   },
 });

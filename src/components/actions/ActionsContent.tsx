@@ -3,6 +3,7 @@ import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import type { RecommendedAction } from '../../types/analysis';
 import { colors } from '../../theme/colors';
 import { spacing } from '../../theme/spacing';
+import { STICKY_PAGE_ACTIONS_HEIGHT } from '../StickyPageActions';
 import { ActionsListSection } from './ActionsListSection';
 
 interface ActionsContentProps {
@@ -47,6 +48,6 @@ const styles = StyleSheet.create({
     gap: spacing.stackMd,
   },
   bottomSpacer: {
-    height: 32,
+    height: STICKY_PAGE_ACTIONS_HEIGHT,
   },
 });

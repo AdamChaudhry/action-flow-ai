@@ -1,12 +1,17 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { AnalyzeSubmitSection } from '../components/analyze/AnalyzeSubmitSection';
 import { ContentInputSection } from '../components/analyze/ContentInputSection';
 import { UrlImportSection } from '../components/analyze/UrlImportSection';
+import { WorkflowTimelineCard } from '../components/analyze/WorkflowTimelineCard';
+import {
+  StickyPageActions,
+  STICKY_PAGE_ACTIONS_HEIGHT,
+} from '../components/StickyPageActions';
 import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
+import { useAnalysisJob } from '../hooks/useAnalysisJob';
 import { useSubmitAnalysis } from '../hooks/useSubmitAnalysis';
 import type { AnalyzeStackParamList } from '../navigation/AnalyzeStackNavigator';
 
@@ -14,6 +19,8 @@ type AnalyzeNavProp = NativeStackNavigationProp<AnalyzeStackParamList, 'AnalyzeI
 
 export const AnalyzeScreen: React.FC = () => {
   const navigation = useNavigation<AnalyzeNavProp>();
+  const [activeJobId, setActiveJobId] = useState<string | undefined>();
+  const hasNavigatedToInsightsRef = useRef(false);
 
   const {
     textContent,
@@ -28,39 +35,74 @@ export const AnalyzeScreen: React.FC = () => {
     submit,
   } = useSubmitAnalysis();
 
+  const { steps, jobState, activeStepLabel } = useAnalysisJob(activeJobId);
+  const isAnalyzing = activeJobId !== undefined && jobState === 'processing';
+  const isAnalysisCompleted = activeJobId !== undefined && jobState === 'completed';
+  const isAnalysisFailed = activeJobId !== undefined && jobState === 'failed';
+
+  useEffect(() => {
+    if (
+      jobState === 'completed' &&
+      activeJobId &&
+      !hasNavigatedToInsightsRef.current
+    ) {
+      hasNavigatedToInsightsRef.current = true;
+      navigation.navigate('Insights', { jobId: activeJobId });
+    }
+  }, [activeJobId, jobState, navigation]);
+
   const handleSubmit = useCallback(async () => {
+    if (isAnalyzing) {
+      return;
+    }
+
     const jobId = await submit();
     if (jobId) {
-      navigation.navigate('Processing', { jobId });
+      hasNavigatedToInsightsRef.current = false;
+      setActiveJobId(jobId);
     }
-  }, [navigation, submit]);
+  }, [isAnalyzing, submit]);
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.contentContainer}
-      keyboardShouldPersistTaps="handled"
-    >
-      <ContentInputSection
-        textContent={textContent}
-        pickedFile={pickedFile}
-        pickedImage={pickedImage}
-        onTextChange={setTextContent}
-        onPickDocument={pickDocument}
-        onPickImage={pickImage}
-        onClearFile={clearFile}
-        onClearImage={clearImage}
+    <View style={styles.container}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.contentContainer}
+        keyboardShouldPersistTaps="handled"
+      >
+        <ContentInputSection
+          textContent={textContent}
+          pickedFile={pickedFile}
+          pickedImage={pickedImage}
+          onTextChange={setTextContent}
+          onPickDocument={pickDocument}
+          onPickImage={pickImage}
+          onClearFile={clearFile}
+          onClearImage={clearImage}
+        />
+
+        <UrlImportSection />
+
+        {activeJobId && (
+          <WorkflowTimelineCard
+            steps={steps}
+            activeStepLabel={activeStepLabel}
+            isCompleted={isAnalysisCompleted}
+            isError={isAnalysisFailed}
+          />
+        )}
+
+        <View style={styles.bottomSpacer} />
+      </ScrollView>
+
+      <StickyPageActions
+        previousTitle="Start"
+        nextTitle="Start"
+        onNext={handleSubmit}
+        isPreviousDisabled
+        isNextDisabled={isSubmitting || isAnalyzing}
       />
-
-      <UrlImportSection />
-
-      <AnalyzeSubmitSection
-        isSubmitting={isSubmitting}
-        onSubmit={handleSubmit}
-      />
-
-      <View style={styles.bottomSpacer} />
-    </ScrollView>
+    </View>
   );
 };
 
@@ -69,11 +111,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+  scroll: {
+    flex: 1,
+  },
   contentContainer: {
     padding: spacing.marginMobile,
     gap: spacing.stackMd,
   },
   bottomSpacer: {
-    height: 24,
+    height: STICKY_PAGE_ACTIONS_HEIGHT,
   },
 });

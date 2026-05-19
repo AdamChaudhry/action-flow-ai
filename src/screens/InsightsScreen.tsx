@@ -7,7 +7,7 @@ import {
   InsightsFeedbackState,
   InsightsLoadingState,
 } from '../components/insights/InsightsStateView';
-import { InsightsStickyCta } from '../components/insights/InsightsStickyCta';
+import { StickyPageActions } from '../components/StickyPageActions';
 import { colors } from '../theme/colors';
 import { useInsights } from '../hooks/useInsights';
 import type { AnalyzeStackParamList } from '../navigation/AnalyzeStackNavigator';
@@ -60,7 +60,12 @@ export const InsightsScreen: React.FC = () => {
         isRefreshing={isLoading}
         onRefresh={refetch}
       />
-      <InsightsStickyCta onPress={navigateToImplications} />
+      <StickyPageActions
+        previousTitle="Analyze"
+        nextTitle="Implications"
+        onPrevious={() => navigation.navigate('AnalyzeInput')}
+        onNext={navigateToImplications}
+      />
     </View>
   );
 };

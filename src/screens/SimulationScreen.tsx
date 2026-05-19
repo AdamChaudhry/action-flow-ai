@@ -7,6 +7,7 @@ import {
   SimulationErrorState,
   SimulationLoadingState,
 } from '../components/simulation/SimulationStateView';
+import { StickyPageActions } from '../components/StickyPageActions';
 import { colors } from '../theme/colors';
 import { useActionSimulation } from '../hooks/useActionSimulation';
 import type { ActionsStackParamList } from '../navigation/ActionsStackNavigator';
@@ -47,6 +48,12 @@ export const SimulationScreen: React.FC = () => {
   return (
     <View style={styles.outer}>
       <SimulationContent simulation={simulation} />
+      <StickyPageActions
+        previousTitle="Actions"
+        nextTitle="Complete"
+        onPrevious={goBack}
+        isNextDisabled
+      />
     </View>
   );
 };

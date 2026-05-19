@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import type { ActionSimulation } from '../../types/analysis';
 import { colors } from '../../theme/colors';
 import { spacing } from '../../theme/spacing';
+import { STICKY_PAGE_ACTIONS_HEIGHT } from '../StickyPageActions';
 import { SimulationHeroCard } from './SimulationHeroCard';
 import { SimulationTargetAction } from './SimulationTargetAction';
 import { SimulationMetricTransitionsSection } from './SimulationMetricTransitionsSection';
@@ -96,5 +97,5 @@ const styles = StyleSheet.create({
   outer:         { flex: 1, backgroundColor: colors.background },
   scroll:        { flex: 1 },
   content:       { padding: spacing.marginMobile, gap: spacing.stackMd },
-  bottomSpacer:  { height: 8 },
+  bottomSpacer:  { height: STICKY_PAGE_ACTIONS_HEIGHT },
 });

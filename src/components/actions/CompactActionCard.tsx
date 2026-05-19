@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, View, StyleSheet, TouchableOpacity } from 'react-native';
+import { Pressable, View, StyleSheet } from 'react-native';
 import { Typography } from '../Typography';
 import { colors } from '../../theme/colors';
 import { spacing, rounded } from '../../theme/spacing';
@@ -33,19 +33,15 @@ const chip = StyleSheet.create({
 interface CompactActionCardProps {
   action: RecommendedAction;
   onPress?: () => void;
-  onReviewLogic?: () => void;
-  onDismiss?: () => void;
 }
 
 /**
  * Compact action card — for auto-executable actions (requiresHumanApproval = false).
- * Shows priority chip, title, expected impact, and Review Logic / Dismiss links.
+ * Shows priority chip, title, and expected impact.
  */
 export const CompactActionCard: React.FC<CompactActionCardProps> = ({
   action,
   onPress,
-  onReviewLogic,
-  onDismiss,
 }) => (
   <Pressable
     accessibilityRole="button"
@@ -66,19 +62,6 @@ export const CompactActionCard: React.FC<CompactActionCardProps> = ({
       {action.expectedImpact}
     </Typography>
 
-    {/* ── Action links ─────────────────────── */}
-    <View style={styles.linkRow}>
-      <TouchableOpacity onPress={onReviewLogic} activeOpacity={0.7}>
-        <Typography variant="labelSm" color={colors.aiBlue} style={styles.link}>
-          Review Logic
-        </Typography>
-      </TouchableOpacity>
-      <TouchableOpacity onPress={onDismiss} activeOpacity={0.7}>
-        <Typography variant="labelSm" color={colors.textSecondary} style={styles.link}>
-          Dismiss
-        </Typography>
-      </TouchableOpacity>
-    </View>
   </Pressable>
 );
 
@@ -107,13 +90,5 @@ const styles = StyleSheet.create({
   },
   impact: {
     lineHeight: 20,
-  },
-  linkRow: {
-    flexDirection: 'row',
-    gap: spacing.stackMd,
-    marginTop: spacing.stackSm,
-  },
-  link: {
-    letterSpacing: 0.1,
   },
 });

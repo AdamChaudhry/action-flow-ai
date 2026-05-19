@@ -1,18 +1,24 @@
 import React, { useCallback } from 'react';
+import { StyleSheet, View } from 'react-native';
 import { RouteProp, useRoute, useNavigation } from '@react-navigation/native';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ActionsContent } from '../components/actions/ActionsContent';
 import {
   ActionsFeedbackState,
   ActionsLoadingState,
 } from '../components/actions/ActionsStateView';
+import { StickyPageActions } from '../components/StickyPageActions';
+import { colors } from '../theme/colors';
 import { useRecommendedActions } from '../hooks/useRecommendedActions';
 import { useSubmitSimulation } from '../hooks/useSubmitSimulation';
 import { useActionsJobId } from '../navigation/ActionsJobContext';
 import type { ActionsStackParamList } from '../navigation/ActionsStackNavigator';
+import type { MainTabParamList } from '../navigation/MainTabNavigator';
 
 type ActionsNavProp = NativeStackNavigationProp<ActionsStackParamList, 'ActionsList'>;
 type ActionsRouteProp = RouteProp<ActionsStackParamList, 'ActionsList'>;
+type RootTabNavigationProp = BottomTabNavigationProp<MainTabParamList>;
 
 export const ActionsScreen: React.FC = () => {
   const route      = useRoute<ActionsRouteProp>();
@@ -22,6 +28,13 @@ export const ActionsScreen: React.FC = () => {
 
   const { actions, isLoading, error, refetch } = useRecommendedActions(jobId);
   const { triggerSimulation, isSubmitting }     = useSubmitSimulation();
+
+  const navigateToImplications = useCallback(() => {
+    navigation.getParent<RootTabNavigationProp>()?.navigate('Analyze', {
+      screen: 'Implications',
+      params: { jobId },
+    });
+  }, [jobId, navigation]);
 
   const handleSimulate = useCallback(async (actionId: string) => {
     if (!jobId) { return; }
@@ -55,12 +68,27 @@ export const ActionsScreen: React.FC = () => {
   }
 
   return (
-    <ActionsContent
-      actions={actions}
-      isRefreshing={isLoading}
-      onRefresh={refetch}
-      onSimulate={handleSimulate}
-      isSimulating={isSubmitting}
-    />
+    <View style={styles.outerContainer}>
+      <ActionsContent
+        actions={actions}
+        isRefreshing={isLoading}
+        onRefresh={refetch}
+        onSimulate={handleSimulate}
+        isSimulating={isSubmitting}
+      />
+      <StickyPageActions
+        previousTitle="Implications"
+        nextTitle="Simulation"
+        onPrevious={navigateToImplications}
+        isNextDisabled
+      />
+    </View>
   );
 };
+
+const styles = StyleSheet.create({
+  outerContainer: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+});

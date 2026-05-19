@@ -37,14 +37,14 @@ export const ActionsHeader: React.FC<ActionsHeaderProps> = ({ totalCount, newCou
 
 const styles = StyleSheet.create({
   container: {
-    paddingBottom: spacing.stackMd,
+    paddingBottom: spacing.stackSm,
   },
   title: {
-    marginBottom: spacing.stackSm,
+    marginBottom: 4,
   },
   subtitle: {
-    lineHeight: 24,
-    marginBottom: spacing.stackMd,
+    lineHeight: 20,
+    marginBottom: spacing.stackSm,
   },
   badge: {
     flexDirection: 'row',

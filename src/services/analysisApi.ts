@@ -98,7 +98,7 @@ export async function getAnalysisJob(jobId: string): Promise<AnalysisJob> {
   }
 
   const result = await response.json();
-  return result.data as AnalysisJob;
+  return (result.data?.job ?? result.data) as AnalysisJob;
 }
 
 /**
