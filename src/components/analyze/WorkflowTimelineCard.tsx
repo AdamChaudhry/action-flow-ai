@@ -31,6 +31,10 @@ const StepIcon: React.FC<{ status: StepStatus; index: number }> = ({
     return <CheckCircle2 size={20} color={colors.aiBlue} fill={colors.aiBlue} />;
   }
 
+  if (status === 'failed') {
+    return <AlertCircle size={20} color={ERROR_COLOR} />;
+  }
+
   if (status === 'active') {
     return <ActivityIndicator size="small" color={colors.aiBlue} />;
   }
@@ -46,6 +50,7 @@ const WorkflowStepRow: React.FC<{
 }> = ({ step, index, totalSteps }) => {
   const isActive = step.status === 'active';
   const isPending = step.status === 'pending';
+  const isFailed = step.status === 'failed';
 
   return (
     <View style={rowStyles.container}>
@@ -56,6 +61,7 @@ const WorkflowStepRow: React.FC<{
             style={[
               rowStyles.connector,
               step.status === 'completed' && rowStyles.connectorCompleted,
+              isFailed && rowStyles.connectorFailed,
             ]}
           />
         )}
@@ -68,6 +74,8 @@ const WorkflowStepRow: React.FC<{
             color={
               isPending
                 ? colors.textTertiary
+                : isFailed
+                ? ERROR_COLOR
                 : isActive
                 ? colors.aiBlue
                 : colors.textPrimary
@@ -76,6 +84,7 @@ const WorkflowStepRow: React.FC<{
             {step.label}
           </Typography>
           {isActive && <Badge label="ACTIVE" variant="ai" style={rowStyles.badge} />}
+          {isFailed && <Badge label="FAILED" variant="neutral" style={rowStyles.failedBadge} />}
         </View>
 
         {isActive && (
@@ -84,8 +93,14 @@ const WorkflowStepRow: React.FC<{
           </View>
         )}
 
+        {isFailed && (
+          <View style={rowStyles.failedBar}>
+            <View style={rowStyles.failedFill} />
+          </View>
+        )}
+
         {!isActive && step.subLabel !== '' && (
-          <Typography variant="labelSm" color={colors.textTertiary}>
+          <Typography variant="labelSm" color={isFailed ? ERROR_COLOR : colors.textTertiary}>
             {step.subLabel}
           </Typography>
         )}
@@ -110,7 +125,7 @@ export const WorkflowTimelineCard: React.FC<WorkflowTimelineCardProps> = ({
         <Badge
           label="Failed"
           variant="neutral"
-          icon={<AlertCircle size={10} color={colors.textSecondary} />}
+          icon={<AlertCircle size={10} color={ERROR_COLOR} />}
         />
       ) : isCompleted ? (
         <Badge
@@ -157,6 +172,8 @@ const styles = StyleSheet.create({
   },
 });
 
+const ERROR_COLOR = '#DC2626';
+
 const rowStyles = StyleSheet.create({
   container: {
     flexDirection: 'row',
@@ -177,6 +194,9 @@ const rowStyles = StyleSheet.create({
   connectorCompleted: {
     backgroundColor: colors.aiBlue,
   },
+  connectorFailed: {
+    backgroundColor: ERROR_COLOR,
+  },
   content: {
     flex: 1,
     paddingBottom: spacing.stackMd,
@@ -191,6 +211,11 @@ const rowStyles = StyleSheet.create({
     paddingVertical: 2,
     paddingHorizontal: 6,
   },
+  failedBadge: {
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+    backgroundColor: '#FEF2F2',
+  },
   progressBar: {
     height: 3,
     marginTop: spacing.stackSm,
@@ -202,6 +227,19 @@ const rowStyles = StyleSheet.create({
     width: '60%',
     height: '100%',
     backgroundColor: colors.aiBlue,
+    borderRadius: rounded.full,
+  },
+  failedBar: {
+    height: 3,
+    marginTop: spacing.stackSm,
+    overflow: 'hidden',
+    backgroundColor: '#FEE2E2',
+    borderRadius: rounded.full,
+  },
+  failedFill: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: ERROR_COLOR,
     borderRadius: rounded.full,
   },
 });

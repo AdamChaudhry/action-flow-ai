@@ -3,12 +3,13 @@ import { View, StyleSheet } from 'react-native';
 import { Typography } from '../Typography';
 import { colors } from '../../theme/colors';
 import { spacing, rounded } from '../../theme/spacing';
+import { toDisplayText } from '../../utils/displayText';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function formatSimulationId(rawId: string): string {
   // Show last 8 chars formatted as "SF-XXXX-XX"
-  const clean = rawId.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+  const clean = toDisplayText(rawId).replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
   const short  = clean.slice(-8).padStart(8, '0');
   return `SF-${short.slice(0, 4)}-${short.slice(4)}`;
 }
@@ -45,7 +46,7 @@ export const SimulationHeroCard: React.FC<SimulationHeroCardProps> = ({
 
       {/* Main title */}
       <Typography variant="headlineLg" style={styles.title}>
-        Simulation Result: {actionTitle}
+        Simulation Result: {toDisplayText(actionTitle)}
       </Typography>
 
       {/* Confidence pill */}

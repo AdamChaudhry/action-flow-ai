@@ -5,7 +5,7 @@ import { InsightsScreen } from '../screens/InsightsScreen';
 import { ImplicationsScreen } from '../screens/ImplicationsScreen';
 
 export type AnalyzeStackParamList = {
-  AnalyzeInput: undefined;
+  AnalyzeInput: { resetToken?: number } | undefined;
   Insights: { jobId?: string };
   Implications: { jobId?: string };
 };

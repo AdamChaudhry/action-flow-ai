@@ -10,6 +10,7 @@ import { Typography } from '../Typography';
 import { colors } from '../../theme/colors';
 import { spacing, rounded } from '../../theme/spacing';
 import type { Implication, ImplicationSeverity, ImplicationUrgency } from '../../types/analysis';
+import { toDisplayText, toDisplayTextArray } from '../../utils/displayText';
 
 // ─── Severity token ───────────────────────────────────────────────────────────
 
@@ -104,6 +105,8 @@ interface ImplicationCardProps {
 export const ImplicationCard: React.FC<ImplicationCardProps> = ({ implication }) => {
   const token = SEVERITY_TOKEN[implication.severity];
   const { Icon } = token;
+  const affectedAreas = toDisplayTextArray(implication.affectedAreas);
+  const relatedInsightIds = toDisplayTextArray(implication.relatedInsightIds);
 
   return (
     <View style={styles.card}>
@@ -121,25 +124,25 @@ export const ImplicationCard: React.FC<ImplicationCardProps> = ({ implication })
 
       {/* ── Business impact ────────────────────── */}
       <Typography variant="bodyMd" color={colors.textPrimary} style={styles.impact}>
-        {implication.businessImpact}
+        {toDisplayText(implication.businessImpact)}
       </Typography>
 
       {/* ── Affected areas ─────────────────────── */}
-      {implication.affectedAreas.length > 0 && (
+      {affectedAreas.length > 0 && (
         <View style={styles.section}>
           <Typography variant="labelSm" color={colors.textTertiary} style={styles.sectionLabel}>
             AFFECTED AREAS
           </Typography>
-          <AreaPills areas={implication.affectedAreas} />
+          <AreaPills areas={affectedAreas} />
         </View>
       )}
 
       {/* ── Footer: urgency chip + insight count ─ */}
       <View style={styles.footer}>
         <UrgencyChip urgency={implication.urgency} />
-        {implication.relatedInsightIds.length > 0 && (
+        {relatedInsightIds.length > 0 && (
           <Typography variant="labelSm" color={colors.textTertiary}>
-            {implication.relatedInsightIds.length} insight{implication.relatedInsightIds.length > 1 ? 's' : ''}
+            {relatedInsightIds.length} insight{relatedInsightIds.length > 1 ? 's' : ''}
           </Typography>
         )}
       </View>

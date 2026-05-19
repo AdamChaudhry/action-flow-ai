@@ -1,9 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { Keyboard, ScrollView, StyleSheet, View } from 'react-native';
+import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ContentInputSection } from '../components/analyze/ContentInputSection';
-import { UrlImportSection } from '../components/analyze/UrlImportSection';
 import { WorkflowTimelineCard } from '../components/analyze/WorkflowTimelineCard';
 import {
   StickyPageActions,
@@ -16,9 +15,11 @@ import { useSubmitAnalysis } from '../hooks/useSubmitAnalysis';
 import type { AnalyzeStackParamList } from '../navigation/AnalyzeStackNavigator';
 
 type AnalyzeNavProp = NativeStackNavigationProp<AnalyzeStackParamList, 'AnalyzeInput'>;
+type AnalyzeRouteProp = RouteProp<AnalyzeStackParamList, 'AnalyzeInput'>;
 
 export const AnalyzeScreen: React.FC = () => {
   const navigation = useNavigation<AnalyzeNavProp>();
+  const route = useRoute<AnalyzeRouteProp>();
   const [activeJobId, setActiveJobId] = useState<string | undefined>();
   const hasNavigatedToInsightsRef = useRef(false);
 
@@ -32,6 +33,7 @@ export const AnalyzeScreen: React.FC = () => {
     pickImage,
     clearFile,
     clearImage,
+    reset,
     submit,
   } = useSubmitAnalysis();
 
@@ -39,6 +41,16 @@ export const AnalyzeScreen: React.FC = () => {
   const isAnalyzing = activeJobId !== undefined && jobState === 'processing';
   const isAnalysisCompleted = activeJobId !== undefined && jobState === 'completed';
   const isAnalysisFailed = activeJobId !== undefined && jobState === 'failed';
+
+  useEffect(() => {
+    if (route.params?.resetToken === undefined) {
+      return;
+    }
+
+    reset();
+    setActiveJobId(undefined);
+    hasNavigatedToInsightsRef.current = false;
+  }, [reset, route.params?.resetToken]);
 
   useEffect(() => {
     if (
@@ -52,6 +64,8 @@ export const AnalyzeScreen: React.FC = () => {
   }, [activeJobId, jobState, navigation]);
 
   const handleSubmit = useCallback(async () => {
+    Keyboard.dismiss();
+
     if (isAnalyzing) {
       return;
     }
@@ -80,8 +94,6 @@ export const AnalyzeScreen: React.FC = () => {
           onClearFile={clearFile}
           onClearImage={clearImage}
         />
-
-        <UrlImportSection />
 
         {activeJobId && (
           <WorkflowTimelineCard

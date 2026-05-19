@@ -4,6 +4,7 @@ import { FileText } from 'lucide-react-native';
 import { Typography } from '../Typography';
 import { colors } from '../../theme/colors';
 import { spacing, rounded } from '../../theme/spacing';
+import { toDisplayText } from '../../utils/displayText';
 
 interface SimulationProjectedOutcomeProps {
   text: string;
@@ -23,7 +24,7 @@ export const SimulationProjectedOutcome: React.FC<SimulationProjectedOutcomeProp
       </Typography>
     </View>
     <Typography variant="bodyMd" color={colors.textSecondary} style={styles.text}>
-      {text}
+      {toDisplayText(text)}
     </Typography>
   </View>
 );

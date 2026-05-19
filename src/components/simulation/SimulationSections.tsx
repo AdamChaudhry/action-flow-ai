@@ -4,6 +4,7 @@ import { CheckCircle, AlertTriangle, FileText } from 'lucide-react-native';
 import { Typography } from '../Typography';
 import { colors } from '../../theme/colors';
 import { spacing, rounded } from '../../theme/spacing';
+import { toDisplayText, toDisplayTextArray } from '../../utils/displayText';
 
 // ─── Shared row ───────────────────────────────────────────────────────────────
 
@@ -16,7 +17,7 @@ const BulletRow: React.FC<BulletRowProps> = ({ icon, text }) => (
   <View style={row.container}>
     <View style={row.icon}>{icon}</View>
     <Typography variant="bodySm" color={colors.textSecondary} style={row.text}>
-      {text}
+      {toDisplayText(text)}
     </Typography>
   </View>
 );
@@ -63,7 +64,7 @@ export const SimulationAssumptionsSection: React.FC<{ items: string[] }> = ({ it
     icon={<CheckCircle size={18} color={colors.aiBlue} />}
     title="Key Assumptions"
   >
-    {items.map((item, i) => (
+    {toDisplayTextArray(items).map((item, i) => (
       <BulletRow
         key={i}
         icon={<Typography variant="bodyMd" color={colors.aiBlue}>→</Typography>}
@@ -80,7 +81,7 @@ export const SimulationRisksSection: React.FC<{ items: string[] }> = ({ items })
     icon={<AlertTriangle size={18} color="#D97706" />}
     title="Remaining Risks"
   >
-    {items.map((item, i) => (
+    {toDisplayTextArray(items).map((item, i) => (
       <BulletRow
         key={i}
         icon={<Typography variant="bodyMd" color="#D97706">→</Typography>}
@@ -97,7 +98,7 @@ export const SimulationEvidenceSection: React.FC<{ items: string[] }> = ({ items
     icon={<FileText size={18} color={colors.textSecondary} />}
     title="Evidence Used"
   >
-    {items.map((item, i) => (
+    {toDisplayTextArray(items).map((item, i) => (
       <BulletRow
         key={i}
         icon={<Typography variant="bodyMd" color={colors.textTertiary}>→</Typography>}

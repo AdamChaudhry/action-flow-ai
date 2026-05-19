@@ -17,8 +17,18 @@ function App() {
       return;
     }
 
-    navigationRef.navigate('Analyze', {
-      screen: 'AnalyzeInput',
+    navigationRef.resetRoot({
+      index: 0,
+      routes: [{
+        name: 'Analyze',
+        state: {
+          index: 0,
+          routes: [{
+            name: 'AnalyzeInput',
+            params: { resetToken: Date.now() },
+          }],
+        },
+      }],
     });
   }, []);
 

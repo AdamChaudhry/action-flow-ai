@@ -5,6 +5,7 @@ import { Typography } from '../Typography';
 import { colors } from '../../theme/colors';
 import { spacing, rounded } from '../../theme/spacing';
 import type { ActionType } from '../../types/analysis';
+import { toDisplayText } from '../../utils/displayText';
 
 interface SimulationTargetActionProps {
   actionTitle: string;
@@ -22,10 +23,10 @@ export const SimulationTargetAction: React.FC<SimulationTargetActionProps> = ({
   parameters,
 }) => {
   // Safely extract owner/team and duration/deadline from parameters
-  const owner    = String(parameters.owner    ?? parameters.team    ?? parameters.segment    ?? '—');
-  const duration = String(parameters.duration ?? parameters.lookbackDays != null
+  const owner = toDisplayText(parameters.owner ?? parameters.team ?? parameters.segment, '-');
+  const duration = toDisplayText(parameters.duration ?? parameters.lookbackDays != null
     ? `${parameters.lookbackDays} days`
-    : parameters.deadline ?? '—');
+    : parameters.deadline, '-');
 
   return (
     <View style={styles.card}>
@@ -41,7 +42,7 @@ export const SimulationTargetAction: React.FC<SimulationTargetActionProps> = ({
 
       {/* Action title */}
       <Typography variant="headlineMd" style={styles.title}>
-        {actionTitle}
+        {toDisplayText(actionTitle)}
       </Typography>
 
       {/* Meta row */}
@@ -59,7 +60,7 @@ export const SimulationTargetAction: React.FC<SimulationTargetActionProps> = ({
         <View style={styles.metaItem}>
           <Typography variant="labelSm" color={colors.textTertiary}>TYPE</Typography>
           <Typography variant="bodyMd" color={colors.textPrimary}>
-            {actionType.replace(/_/g, ' ')}
+            {toDisplayText(actionType).replace(/_/g, ' ')}
           </Typography>
         </View>
       </View>

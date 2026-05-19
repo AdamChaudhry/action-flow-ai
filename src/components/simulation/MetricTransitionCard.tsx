@@ -5,6 +5,7 @@ import { Typography } from '../Typography';
 import { colors } from '../../theme/colors';
 import { spacing, rounded } from '../../theme/spacing';
 import type { SimulatedChange } from '../../types/analysis';
+import { toDisplayText } from '../../utils/displayText';
 
 // ─── Direction badge ──────────────────────────────────────────────────────────
 
@@ -20,14 +21,14 @@ const DIRECTION_TOKEN: Record<Direction, { bg: string; text: string }> = {
 /** Formats the `after` value as a human-readable label */
 function directionLabel(after: SimulatedChange['after']): string {
   if (after === null || after === undefined) { return 'Unknown'; }
-  const s = String(after);
+  const s = toDisplayText(after);
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
 // ─── Metric name formatter ────────────────────────────────────────────────────
 
 function formatMetricName(metric: string): string {
-  return metric
+  return toDisplayText(metric)
     .replace(/([A-Z])/g, ' $1')
     .replace(/_/g, ' ')
     .trim()
@@ -52,7 +53,7 @@ export const MetricTransitionCard: React.FC<MetricTransitionCardProps> = ({ chan
   const label = directionLabel(change.after);
   const beforeLabel = change.before === null || change.before === undefined
     ? 'Unknown'
-    : String(change.before).charAt(0).toUpperCase() + String(change.before).slice(1);
+    : toDisplayText(change.before).charAt(0).toUpperCase() + toDisplayText(change.before).slice(1);
 
   return (
     <View style={styles.card}>
@@ -85,7 +86,7 @@ export const MetricTransitionCard: React.FC<MetricTransitionCardProps> = ({ chan
       <View style={styles.rationaleRow}>
         <FileText size={12} color={colors.textTertiary} />
         <Typography variant="bodySm" color={colors.textSecondary} style={styles.rationale}>
-          {change.rationale}
+          {toDisplayText(change.rationale)}
         </Typography>
       </View>
     </View>

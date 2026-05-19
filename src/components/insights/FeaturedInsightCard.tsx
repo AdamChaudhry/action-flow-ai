@@ -5,6 +5,7 @@ import { ConfidenceBadge } from './ConfidenceBadge';
 import { colors } from '../../theme/colors';
 import { spacing, rounded } from '../../theme/spacing';
 import type { Insight } from '../../types/analysis';
+import { toDisplayText, toDisplayTextArray } from '../../utils/displayText';
 
 interface FeaturedInsightCardProps {
   insight: Insight;
@@ -17,9 +18,7 @@ interface FeaturedInsightCardProps {
 export const FeaturedInsightCard: React.FC<FeaturedInsightCardProps> = ({ insight }) => {
   const opacity = useRef(new Animated.Value(1)).current;
   const translateY = useRef(new Animated.Value(0)).current;
-  const evidenceItems = Array.isArray(insight.evidence)
-    ? insight.evidence
-    : [insight.evidence].filter(Boolean);
+  const evidenceItems = toDisplayTextArray(insight.evidence);
 
   useEffect(() => {
     opacity.setValue(0);
@@ -65,12 +64,12 @@ export const FeaturedInsightCard: React.FC<FeaturedInsightCardProps> = ({ insigh
 
         {/* Headline */}
         <Typography variant="headlineLg" style={styles.title}>
-          {insight.title}
+          {toDisplayText(insight.title)}
         </Typography>
 
         {/* Description */}
         <Typography variant="bodyMd" color={colors.textSecondary} style={styles.description}>
-          {insight.description}
+          {toDisplayText(insight.description)}
         </Typography>
 
         {/* Evidence */}

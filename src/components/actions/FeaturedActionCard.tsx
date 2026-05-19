@@ -1,50 +1,56 @@
 import React, { useEffect, useRef } from 'react';
 import {
-  Animated,
-  View,
-  StyleSheet,
-  TouchableOpacity,
   ActivityIndicator,
+  Animated,
+  Easing,
+  Pressable,
+  StyleSheet,
+  View,
 } from 'react-native';
-import {
-  RefreshCw,
-  AlertCircle,
-} from 'lucide-react-native';
+import { AlertCircle, RefreshCw } from 'lucide-react-native';
 import { Typography } from '../Typography';
 import { colors } from '../../theme/colors';
-import { spacing, rounded } from '../../theme/spacing';
-import type { RecommendedAction, ActionPriority } from '../../types/analysis';
-
-// ─── Priority badge ───────────────────────────────────────────────────────────
+import { rounded, spacing } from '../../theme/spacing';
+import type { ActionPriority, RecommendedAction } from '../../types/analysis';
+import { toDisplayText } from '../../utils/displayText';
 
 const PRIORITY_TOKEN: Record<ActionPriority, { bg: string; text: string; label: string }> = {
   critical: { bg: '#EF4444', text: '#FFFFFF', label: 'Critical Priority' },
-  high:     { bg: '#F87171', text: '#FFFFFF', label: 'High Priority' },
-  medium:   { bg: '#0F172A', text: '#FFFFFF', label: 'Medium Priority' },
-  low:      { bg: '#94A3B8', text: '#FFFFFF', label: 'Low Priority' },
+  high: { bg: '#F87171', text: '#FFFFFF', label: 'High Priority' },
+  medium: { bg: '#0F172A', text: '#FFFFFF', label: 'Medium Priority' },
+  low: { bg: '#94A3B8', text: '#FFFFFF', label: 'Low Priority' },
 };
-
-const PriorityBadge: React.FC<{ priority: ActionPriority }> = ({ priority }) => {
-  const token = PRIORITY_TOKEN[priority];
-  return (
-    <View style={[badge.container, { backgroundColor: token.bg }]}>
-      <Typography variant="labelSm" color={token.text}>{token.label}</Typography>
-    </View>
-  );
-};
-
-const badge = StyleSheet.create({
-  container: { borderRadius: rounded.full, paddingVertical: 3, paddingHorizontal: 10, alignSelf: 'flex-start' },
-});
-
-// ─── Impact / Effort / Risk row ───────────────────────────────────────────────
 
 type Level = 'high' | 'medium' | 'low';
 
 const LEVEL_COLOR: Record<Level, string> = {
-  high:   '#059669',
+  high: '#059669',
   medium: '#D97706',
-  low:    '#3B82F6',
+  low: '#3B82F6',
+};
+
+interface FeaturedActionCardProps {
+  action: RecommendedAction;
+  onSimulate?: () => void;
+  isSimulating?: boolean;
+}
+
+interface ActionButtonsProps {
+  requiresHumanApproval: boolean;
+  onSimulate?: () => void;
+  isSimulating?: boolean;
+}
+
+const PriorityBadge: React.FC<{ priority: ActionPriority }> = ({ priority }) => {
+  const token = PRIORITY_TOKEN[priority] ?? PRIORITY_TOKEN.medium;
+
+  return (
+    <View style={[badge.container, { backgroundColor: token.bg }]}>
+      <Typography variant="labelSm" color={token.text}>
+        {token.label}
+      </Typography>
+    </View>
+  );
 };
 
 const MetricRow: React.FC<{ label: string; value: Level }> = ({ label, value }) => (
@@ -61,108 +67,148 @@ const MetricRow: React.FC<{ label: string; value: Level }> = ({ label, value }) 
   </View>
 );
 
-const metric = StyleSheet.create({
-  row:       { marginBottom: 6 },
-  label:     { letterSpacing: 0.6, marginBottom: 3 },
-  valueRow:  { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  dot:       { width: 7, height: 7, borderRadius: 4 },
-  valueText: { fontWeight: '600' },
-});
-
-// ─── Derive display values from spec fields ───────────────────────────────────
-
-function deriveImpactLevel(expectedImpact: string): Level {
-  const lower = expectedImpact.toLowerCase();
-  if (lower.includes('significant') || lower.includes('critical') || lower.includes('major')) { return 'high'; }
-  if (lower.includes('moderate') || lower.includes('medium')) { return 'medium'; }
-  return 'high'; // Default to high for featured actions
+function deriveImpactLevel(expectedImpact: unknown): Level {
+  const lower = toDisplayText(expectedImpact).toLowerCase();
+  if (lower.includes('significant') || lower.includes('critical') || lower.includes('major')) {
+    return 'high';
+  }
+  if (lower.includes('moderate') || lower.includes('medium')) {
+    return 'medium';
+  }
+  return 'high';
 }
 
 function deriveEffortLevel(priority: ActionPriority): Level {
-  if (priority === 'critical' || priority === 'high') { return 'medium'; }
-  return 'low';
+  return priority === 'critical' || priority === 'high' ? 'medium' : 'low';
 }
 
 function deriveRiskLevel(priority: ActionPriority): Level {
-  if (priority === 'critical') { return 'high'; }
-  if (priority === 'high')     { return 'medium'; }
-  return 'low';
-}
-
-// ─── Action buttons ───────────────────────────────────────────────────────────
-
-interface ActionButtonsProps {
-  requiresHumanApproval: boolean;
-  onSimulate?: () => void;
-  isSimulating?: boolean;
+  if (priority === 'critical') {
+    return 'high';
+  }
+  return priority === 'high' ? 'medium' : 'low';
 }
 
 const ActionButtons: React.FC<ActionButtonsProps> = ({
   requiresHumanApproval,
   onSimulate,
   isSimulating,
-}) => (
-  <View>
-    {requiresHumanApproval ? (
-      <TouchableOpacity
-        style={[btn.simulateBtn, isSimulating && btn.simulateBtnDisabled]}
-        onPress={onSimulate}
+}) => {
+  const scale = useRef(new Animated.Value(1)).current;
+  const pulse = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (!isSimulating) {
+      pulse.stopAnimation();
+      pulse.setValue(0);
+      return;
+    }
+
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, {
+          toValue: 1,
+          duration: 650,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulse, {
+          toValue: 0,
+          duration: 650,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+
+    animation.start();
+
+    return () => {
+      animation.stop();
+    };
+  }, [isSimulating, pulse]);
+
+  const handlePressIn = () => {
+    Animated.spring(scale, {
+      toValue: 0.97,
+      speed: 28,
+      bounciness: 4,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(scale, {
+      toValue: 1,
+      speed: 28,
+      bounciness: 5,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const pulseOpacity = pulse.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.08, 0.22],
+  });
+  const pulseScale = pulse.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 1.04],
+  });
+
+  return (
+    <Animated.View style={{ transform: [{ scale }] }}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Simulate action"
+        accessibilityState={{
+          busy: Boolean(isSimulating),
+          disabled: Boolean(isSimulating),
+        }}
         disabled={isSimulating}
-        activeOpacity={0.8}
+        onPress={onSimulate}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        style={[button.simulate, isSimulating && button.simulateBusy]}
       >
+        {isSimulating && (
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              button.pulseOverlay,
+              {
+                opacity: pulseOpacity,
+                transform: [{ scale: pulseScale }],
+              },
+            ]}
+          />
+        )}
         {isSimulating ? (
           <ActivityIndicator size="small" color="#FFFFFF" />
         ) : (
           <RefreshCw size={14} color="#FFFFFF" />
         )}
         <Typography variant="labelMd" color="#FFFFFF">
-          {isSimulating ? 'Starting…' : 'Simulate'}
+          {isSimulating
+            ? requiresHumanApproval
+              ? 'Starting...'
+              : 'Simulating...'
+            : 'Simulate'}
         </Typography>
-      </TouchableOpacity>
-    ) : (
-      <TouchableOpacity style={btn.simulateBtn} onPress={onSimulate} activeOpacity={0.8}>
-        <RefreshCw size={14} color="#FFFFFF" />
-        <Typography variant="labelMd" color="#FFFFFF">Simulate</Typography>
-      </TouchableOpacity>
-    )}
-  </View>
-);
+      </Pressable>
+    </Animated.View>
+  );
+};
 
-const btn = StyleSheet.create({
-  simulateBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    backgroundColor: colors.primary,
-    borderRadius: rounded.md,
-    paddingVertical: 12,
-  },
-  simulateBtnDisabled: {
-    opacity: 0.6,
-  },
-});
-
-// ─── Featured Action Card ─────────────────────────────────────────────────────
-
-interface FeaturedActionCardProps {
-  action: RecommendedAction;
-  onSimulate?: () => void;
-  isSimulating?: boolean;
-}
-
-/**
- * Large, primary action card — shown for requiresHumanApproval = true actions.
- * Displays: priority badge, title, expected impact/effort/risk metrics,
- * description quote block, and Approve/Simulate/Edit/Reject buttons.
- */
-export const FeaturedActionCard: React.FC<FeaturedActionCardProps> = ({ action, onSimulate, isSimulating }) => {
+export const FeaturedActionCard: React.FC<FeaturedActionCardProps> = ({
+  action,
+  onSimulate,
+  isSimulating,
+}) => {
   const opacity = useRef(new Animated.Value(1)).current;
   const translateY = useRef(new Animated.Value(0)).current;
   const impactLevel = deriveImpactLevel(action.expectedImpact);
   const effortLevel = deriveEffortLevel(action.priority);
-  const riskLevel   = deriveRiskLevel(action.priority);
+  const riskLevel = deriveRiskLevel(action.priority);
 
   useEffect(() => {
     opacity.setValue(0);
@@ -192,34 +238,28 @@ export const FeaturedActionCard: React.FC<FeaturedActionCardProps> = ({ action, 
         },
       ]}
     >
-      {/* ── Priority badge ───────────────── */}
       <PriorityBadge priority={action.priority} />
 
-      {/* ── Title ───────────────────────── */}
       <Typography variant="headlineLg" style={styles.title}>
-        {action.title}
+        {toDisplayText(action.title)}
       </Typography>
 
-      {/* ── Metrics ─────────────────────── */}
       <View style={styles.metricsSection}>
         <MetricRow label="EXPECTED IMPACT" value={impactLevel} />
         <MetricRow label="EFFORT" value={effortLevel} />
         <MetricRow label="RISK" value={riskLevel} />
       </View>
 
-      {/* ── Description quote ────────────── */}
       <View style={styles.quoteBlock}>
         <AlertCircle size={14} color={colors.aiBlue} style={styles.quoteIcon} />
         <View style={styles.quoteBody}>
           <Typography variant="bodySm" color={colors.textSecondary} style={styles.quoteText}>
-            "{action.description}"
+            "{toDisplayText(action.description)}"
           </Typography>
-          {/* Blue progress bar */}
           <View style={styles.progressBar} />
         </View>
       </View>
 
-      {/* ── Action buttons ──────────── */}
       <ActionButtons
         requiresHumanApproval={action.requiresHumanApproval}
         onSimulate={onSimulate}
@@ -229,7 +269,44 @@ export const FeaturedActionCard: React.FC<FeaturedActionCardProps> = ({ action, 
   );
 };
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
+const badge = StyleSheet.create({
+  container: {
+    alignSelf: 'flex-start',
+    borderRadius: rounded.full,
+    paddingVertical: 3,
+    paddingHorizontal: 10,
+  },
+});
+
+const metric = StyleSheet.create({
+  row: { marginBottom: 6 },
+  label: { letterSpacing: 0.6, marginBottom: 3 },
+  valueRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  dot: { width: 7, height: 7, borderRadius: 4 },
+  valueText: { fontWeight: '600' },
+});
+
+const button = StyleSheet.create({
+  simulate: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    overflow: 'hidden',
+    backgroundColor: colors.primary,
+    borderRadius: rounded.md,
+    paddingVertical: 12,
+  },
+  simulateBusy: {
+    opacity: 0.86,
+  },
+  pulseOverlay: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: '#FFFFFF',
+    borderRadius: rounded.md,
+  },
+});
 
 const styles = StyleSheet.create({
   card: {
@@ -277,9 +354,9 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     height: 3,
-    backgroundColor: colors.aiBlue,
-    borderRadius: rounded.full,
     width: '60%',
     marginTop: spacing.stackSm,
+    backgroundColor: colors.aiBlue,
+    borderRadius: rounded.full,
   },
 });

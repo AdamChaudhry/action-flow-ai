@@ -17,6 +17,7 @@ interface UseSubmitAnalysisResult {
   pickImage: () => Promise<void>;
   clearFile: () => void;
   clearImage: () => void;
+  reset: () => void;
   submit: () => Promise<string | null>;
 }
 
@@ -89,6 +90,12 @@ export function useSubmitAnalysis(): UseSubmitAnalysisResult {
 
   const clearFile = useCallback(() => setPickedFile(null), []);
   const clearImage = useCallback(() => setPickedImage(null), []);
+  const reset = useCallback(() => {
+    setTextContent('');
+    setPickedFile(null);
+    setPickedImage(null);
+    setIsSubmitting(false);
+  }, []);
 
   // ── Determine input type ───────────────────────────────────────────────────
 
@@ -162,6 +169,7 @@ export function useSubmitAnalysis(): UseSubmitAnalysisResult {
     pickImage,
     clearFile,
     clearImage,
+    reset,
     submit,
   };
 }

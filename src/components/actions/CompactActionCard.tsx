@@ -4,6 +4,7 @@ import { Typography } from '../Typography';
 import { colors } from '../../theme/colors';
 import { spacing, rounded } from '../../theme/spacing';
 import type { RecommendedAction, ActionPriority } from '../../types/analysis';
+import { toDisplayText } from '../../utils/displayText';
 
 // ─── Priority chip ────────────────────────────────────────────────────────────
 
@@ -45,7 +46,7 @@ export const CompactActionCard: React.FC<CompactActionCardProps> = ({
 }) => (
   <Pressable
     accessibilityRole="button"
-    accessibilityLabel={`Feature action: ${action.title}`}
+    accessibilityLabel={`Feature action: ${toDisplayText(action.title)}`}
     style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
     onPress={onPress}
   >
@@ -54,12 +55,12 @@ export const CompactActionCard: React.FC<CompactActionCardProps> = ({
 
     {/* ── Title ────────────────────────────── */}
     <Typography variant="headlineMd" style={styles.title}>
-      {action.title}
+      {toDisplayText(action.title)}
     </Typography>
 
     {/* ── Expected impact as subtitle ────────── */}
     <Typography variant="bodySm" color={colors.textSecondary} style={styles.impact}>
-      {action.expectedImpact}
+      {toDisplayText(action.expectedImpact)}
     </Typography>
 
   </Pressable>

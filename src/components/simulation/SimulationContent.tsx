@@ -14,6 +14,7 @@ import {
 } from './SimulationSections';
 import { SimulationOutcomeScore } from './SimulationOutcomeScore';
 import { SimulationProjectedOutcome } from './SimulationProjectedOutcome';
+import { toDisplayTextArray } from '../../utils/displayText';
 
 interface SimulationContentProps {
   simulation: ActionSimulation;
@@ -36,9 +37,9 @@ export const SimulationContent: React.FC<SimulationContentProps> = ({
   simulation,
 }) => {
   const expectedChanges = simulation.expectedChanges ?? [];
-  const assumptions     = simulation.assumptions     ?? [];
-  const risks           = simulation.risks           ?? [];
-  const evidenceUsed    = simulation.evidenceUsed    ?? [];
+  const assumptions     = toDisplayTextArray(simulation.assumptions);
+  const risks           = toDisplayTextArray(simulation.risks);
+  const evidenceUsed    = toDisplayTextArray(simulation.evidenceUsed);
 
   return (
     <View style={styles.outer}>

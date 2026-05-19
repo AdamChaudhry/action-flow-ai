@@ -25,7 +25,19 @@ const NODE_PROGRESS_MAP: Record<string, number> = {
   ContentToActionNode: 60,
 };
 
-export type StepStatus = 'completed' | 'active' | 'pending';
+const COMPLETED_STEP_MESSAGES = [
+  'Content validated and accepted',
+  'Content cleaned and normalized',
+  'Insights, implications, and actions generated',
+];
+
+const ACTIVE_STEP_MESSAGES = [
+  'Validating and detecting input type',
+  'Cleaning and preparing the source',
+  'Calling AI model and generating recommendations',
+];
+
+export type StepStatus = 'completed' | 'active' | 'pending' | 'failed';
 
 export interface WorkflowStep {
   id: string;
@@ -94,10 +106,18 @@ export function useAnalysisJob(jobId: string | undefined): UseAnalysisJobResult 
     setSteps(prev =>
       prev.map((step, index) => {
         if (index < stepIndex) {
-          return { ...step, status: 'completed' };
+          return {
+            ...step,
+            status: 'completed',
+            subLabel: COMPLETED_STEP_MESSAGES[index] ?? step.subLabel,
+          };
         }
         if (index === stepIndex) {
-          return { ...step, status: 'active' };
+          return {
+            ...step,
+            status: 'active',
+            subLabel: ACTIVE_STEP_MESSAGES[index] ?? step.subLabel,
+          };
         }
         return { ...step, status: 'pending' };
       }),
@@ -106,15 +126,114 @@ export function useAnalysisJob(jobId: string | undefined): UseAnalysisJobResult 
 
   const markStepCompleted = useCallback((stepIndex: number) => {
     setSteps(prev =>
-      prev.map((step, index) =>
-        index <= stepIndex ? { ...step, status: 'completed' } : step,
-      ),
+      prev.map((step, index) => {
+        if (index > stepIndex) {
+          return step;
+        }
+
+        return {
+          ...step,
+          status: 'completed',
+          subLabel: COMPLETED_STEP_MESSAGES[index] ?? step.subLabel,
+        };
+      }),
     );
   }, []);
 
+  const summarizeWorkflowError = useCallback((message?: string | null) => {
+    if (!message) {
+      return 'This step failed. Please try again.';
+    }
+
+    const lower = message.toLowerCase();
+
+    if (lower.includes('429') || lower.includes('too many requests') || lower.includes('quota')) {
+      return 'AI quota limit reached. Check Gemini billing or try again later.';
+    }
+
+    if (lower.includes('rawinput') || lower.includes('validation')) {
+      return 'Input validation failed. Check the content and try again.';
+    }
+
+    if (lower.includes('network') || lower.includes('fetch')) {
+      return 'Network request failed. Check the API connection and try again.';
+    }
+
+    if (lower.includes('json') || lower.includes('parse')) {
+      return 'AI response could not be parsed. Please retry the analysis.';
+    }
+
+    return message.length > 120 ? `${message.slice(0, 117).trim()}...` : message;
+  }, []);
+
+  const inferFailedStepIndex = useCallback((message?: string | null) => {
+    const lower = message?.toLowerCase() ?? '';
+
+    if (
+      lower.includes('gemini') ||
+      lower.includes('googlegenerativeai') ||
+      lower.includes('generatecontent') ||
+      lower.includes('quota') ||
+      lower.includes('too many requests') ||
+      lower.includes('llm') ||
+      lower.includes('contenttoaction')
+    ) {
+      return NODE_INDEX_MAP.ContentToActionNode;
+    }
+
+    if (lower.includes('normalize')) {
+      return NODE_INDEX_MAP.NormalizeContentNode;
+    }
+
+    if (lower.includes('rawinput') || lower.includes('validation') || lower.includes('ingest')) {
+      return NODE_INDEX_MAP.IngestInputNode;
+    }
+
+    return undefined;
+  }, []);
+
+  const markStepFailed = useCallback((stepIndex?: number, message?: string) => {
+    setSteps(prev => {
+      const activeIndex = prev.findIndex(step => step.status === 'active');
+      const lastCompletedIndex = prev.reduce(
+        (latestIndex, step, index) => step.status === 'completed' ? index : latestIndex,
+        -1,
+      );
+      const fallbackIndex = activeIndex >= 0 ? activeIndex : Math.min(lastCompletedIndex + 1, prev.length - 1);
+      const failedIndex = stepIndex ?? fallbackIndex;
+      const shortMessage = summarizeWorkflowError(message);
+
+      return prev.map((step, index) => {
+        if (index < failedIndex) {
+          return {
+            ...step,
+            status: 'completed',
+            subLabel: COMPLETED_STEP_MESSAGES[index] ?? step.subLabel,
+          };
+        }
+
+        if (index === failedIndex) {
+          return {
+            ...step,
+            status: 'failed',
+            subLabel: shortMessage,
+          };
+        }
+
+        return { ...step, status: 'pending' };
+      });
+    });
+  }, [summarizeWorkflowError]);
+
   const markAllCompleted = useCallback(() => {
     isTerminalRef.current = true;
-    setSteps(prev => prev.map(step => ({ ...step, status: 'completed' })));
+    setSteps(prev =>
+      prev.map((step, index) => ({
+        ...step,
+        status: 'completed',
+        subLabel: COMPLETED_STEP_MESSAGES[index] ?? step.subLabel,
+      })),
+    );
     setProgress(100);
     setJobState('completed');
   }, []);
@@ -141,6 +260,12 @@ export function useAnalysisJob(jobId: string | undefined): UseAnalysisJobResult 
 
       if (job.status === 'failed') {
         isTerminalRef.current = true;
+        const shortMessage = summarizeWorkflowError(job.error);
+        markStepFailed(
+          inferFailedStepIndex(job.error) ?? (job.currentNode ? NODE_INDEX_MAP[job.currentNode] : undefined),
+          shortMessage,
+        );
+        setErrorMessage(shortMessage);
         setJobState('failed');
         return;
       }
@@ -154,7 +279,7 @@ export function useAnalysisJob(jobId: string | undefined): UseAnalysisJobResult 
         }
       }
     },
-    [markAllCompleted, markStepActive],
+    [inferFailedStepIndex, markAllCompleted, markStepActive, markStepFailed, summarizeWorkflowError],
   );
 
   const activateNode = useCallback(
@@ -228,7 +353,9 @@ export function useAnalysisJob(jobId: string | undefined): UseAnalysisJobResult 
         case 'workflow_failed': {
           const { error } = msg.payload as WorkflowFailedPayload;
           isTerminalRef.current = true;
-          setErrorMessage(error?.message ?? 'Analysis failed.');
+          const shortMessage = summarizeWorkflowError(error?.message);
+          setErrorMessage(shortMessage);
+          markStepFailed(inferFailedStepIndex(error?.message), shortMessage);
           setJobState('failed');
           break;
         }
@@ -237,7 +364,7 @@ export function useAnalysisJob(jobId: string | undefined): UseAnalysisJobResult 
           break;
       }
     },
-    [activateNode, markAllCompleted, markStepCompleted],
+    [activateNode, inferFailedStepIndex, markAllCompleted, markStepCompleted, markStepFailed, summarizeWorkflowError],
   );
 
   const handleTerminalMessage = useCallback(
@@ -249,10 +376,12 @@ export function useAnalysisJob(jobId: string | undefined): UseAnalysisJobResult 
 
       const payload = msg.payload as Partial<WorkflowFailedPayload>;
       isTerminalRef.current = true;
-      setErrorMessage(payload.error?.message ?? 'Analysis failed.');
+      const shortMessage = summarizeWorkflowError(payload.error?.message);
+      setErrorMessage(shortMessage);
+      markStepFailed(inferFailedStepIndex(payload.error?.message), shortMessage);
       setJobState('failed');
     },
-    [markAllCompleted],
+    [inferFailedStepIndex, markAllCompleted, markStepFailed, summarizeWorkflowError],
   );
 
   useEffect(() => {
