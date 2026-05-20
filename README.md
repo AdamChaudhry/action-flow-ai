@@ -1,97 +1,164 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# Mobile App Overview
 
-# Getting Started
+## What This Mobile App Does
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+This mobile app turns business content into an interactive decision support experience. Users can submit text, documents, or images, then the app guides them through:
 
-## Step 1: Start Metro
+- content analysis,
+- insight discovery,
+- implication review,
+- recommended actions,
+- action simulation.
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+The app is built as a React Native experience with a mobile-first workflow and real-time feedback on analysis progress.
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+---
 
-```sh
-# Using npm
-npm start
+## Business Domain
 
-# OR using Yarn
-yarn start
+The product sits between business signals and decision-making on mobile.
+
+Typical input sources:
+
+- support summaries,
+- customer feedback,
+- screenshots or images,
+- reports and notes,
+- operational or finance observations.
+
+Typical output goals:
+
+- "What is happening?"
+- "Why does this matter?"
+- "What should we do next?"
+- "What will happen if we try this?"
+
+The business rule is clear: mobile recommendations are advisory. Actions are surfaced for human review and must be validated before any real-world execution.
+
+---
+
+## Core Domain Vocabulary
+
+| Term | Meaning |
+|---|---|
+| Analysis Job | A submitted request for content analysis tied to a user session |
+| Input Type | Content accepted from text, document, image, or mixed input |
+| Baseline State | Initial snapshot of the submitted content and context |
+| Insight | A key finding, trend, or signal identified from the content |
+| Implication | The business impact associated with one or more insights |
+| Recommended Action | A suggested next step visible to the user |
+| Pending Approval | Suggested actions remain reviewable in the mobile flow |
+| Simulation | A projected result for a chosen action |
+| Outcome State | The summary returned after a simulation completes |
+
+---
+
+## Main User Journey
+
+1. User opens the app and starts analysis from the home header.
+2. User provides content via text entry, document upload, or image selection.
+3. The app creates an analysis job and tracks progress.
+4. When analysis completes, the app shows insights and the next logical implications.
+5. The user reviews recommended actions under the same job context.
+6. The user selects an action and runs a simulation.
+7. The app returns a simulation result for review before real-world follow-up.
+
+---
+
+## System Architecture
+
+```text
+App.tsx
+  ├─ Header (start analysis)
+  ├─ MainTabNavigator
+  │   ├─ Analyze flow
+  │   │   ├─ AnalyzeScreen
+  │   │   ├─ InsightsScreen
+  │   │   └─ ImplicationsScreen
+  │   └─ Actions flow
+  │       ├─ ActionsScreen
+  │       └─ SimulationScreen
+  ├─ shared hooks and services
+  └─ UI components
 ```
 
-## Step 2: Build and run your app
+The app is organized into:
 
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
+- navigation flows for analysis and actions,
+- screens for each stage of the workflow,
+- hooks for business logic,
+- components for reusable UI patterns.
 
-### Android
+---
 
-```sh
-# Using npm
-npm run android
+## Runtime Components
 
-# OR using Yarn
-yarn android
+| Component | Responsibility |
+|---|---|
+| `App.tsx` | Root app container and navigation entry point |
+| `MainTabNavigator` | Hosts the two main tabs: Analyze and Actions |
+| `AnalyzeScreen` | Collects input and submits analysis jobs |
+| `InsightsScreen` | Displays generated insights |
+| `ImplicationsScreen` | Shows business implications |
+| `ActionsScreen` | Lists recommended actions and starts simulations |
+| `SimulationScreen` | Presents action simulation results |
+| `useSubmitAnalysis` | Handles content submission and job creation |
+| `useAnalysisJob` | Tracks analysis status and progress |
+| `useRecommendedActions` | Fetches action recommendations |
+| `useActionSimulation` | Fetches simulation results |
+
+---
+
+## Key Technical Principles
+
+- Keep `jobId` as the central workflow correlation key.
+- Keep UI screens focused on display and navigation.
+- Keep business logic in hooks and service modules.
+- Keep the mobile flow lightweight and responsive.
+- Treat analysis output as advisory, not automatic execution.
+
+---
+
+## Antigravity Rules and Skills
+
+This project uses Antigravity guidance to keep the mobile app aligned with architecture and domain boundaries.
+
+- `rules/` define broad, always-on constraints such as clean layer separation, navigation patterns, and code quality expectations.
+- `skills/` capture role-specific workflows for mobile development, feature implementation, and API interaction.
+- Mobile work should follow the rules by keeping UI focused on navigation and display, while moving business logic into hooks and services.
+- Skills are used when adding new screens, business flows, or integrations to ensure consistent app patterns.
+
+### Mobile Rule Summary
+
+| Rule | Purpose |
+|---|---|
+| `api-integration-doc.md` | Documents the backend REST contract and how mobile should call the analysis API. |
+| `code-quality.md` | Enforces maintainable TypeScript, clear naming, and small, testable units. |
+| `data-models.md` | Defines the contract for request/response types and shared analysis data structures. |
+| `design.md` | Captures the mobile visual and interaction style expected for UI consistency. |
+| `mobile-rules.md` | Restricts mobile components to presentation, navigation, hooks, and API client usage only. |
+| `web-socket.md` | Describes WebSocket events and payloads for real-time job progress updates. |
+| `workflow.md` | Documents the two main analysis/execution workflows and their node responsibilities. |
+
+### Mobile Skill Summary
+
+| Skill | Purpose |
+|---|---|
+| `react-native-mobile-developer.md` | Guides implementation of production-grade React Native features, performance, and mobile UX. |
+
+---
+
+## Handover Summary
+
+This mobile app is a content-to-action tool for business users. The main mental model is:
+
+```text
+Content submission
+  -> analysis job
+  -> insights
+  -> implications
+  -> recommended actions
+  -> simulation
 ```
 
-### iOS
-
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
-
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
-
-```sh
-bundle install
-```
-
-Then, and every time you update your native dependencies, run:
-
-```sh
-bundle exec pod install
-```
-
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
-
-```sh
-# Using npm
-npm run ios
-
-# OR using Yarn
-yarn ios
-```
-
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
-
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
-
-## Step 3: Modify your app
-
-Now that you have successfully run the app, let's make changes!
-
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
-
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
-
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
-
-## Congratulations! :tada:
-
-You've successfully run and modified your React Native App. :partying_face:
-
-### Now what?
-
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
-
-# Troubleshooting
-
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
-
-# Learn More
-
-To learn more about React Native, take a look at the following resources:
-
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+It is built to make decision support accessible on mobile while preserving the rule that actions remain reviewable before execution.
