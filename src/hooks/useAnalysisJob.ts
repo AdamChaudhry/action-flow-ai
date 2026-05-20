@@ -2,12 +2,14 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { getAnalysisJob } from '../services/analysisApi';
 import { AnalysisWebSocketClient } from '../services/analysisWebSocket';
 import type {
+  ActionSimulatedPayload,
   AnalysisJob,
   AwaitingApprovalPayload,
   ContentAnalyzedPayload,
   ContentNormalizedPayload,
   JobStartedPayload,
   NodeStartedPayload,
+  OutcomeUpdatedPayload,
   WorkflowCompletedPayload,
   WorkflowFailedPayload,
   WsMessage,
@@ -17,24 +19,28 @@ const NODE_INDEX_MAP: Record<string, number> = {
   IngestInputNode: 0,
   NormalizeContentNode: 1,
   ContentToActionNode: 2,
+  EvaluationNode: 3,
 };
 
 const NODE_PROGRESS_MAP: Record<string, number> = {
   IngestInputNode: 10,
   NormalizeContentNode: 20,
   ContentToActionNode: 60,
+  EvaluationNode: 80,
 };
 
 const COMPLETED_STEP_MESSAGES = [
   'Content validated and accepted',
   'Content cleaned and normalized',
   'Insights, implications, and actions generated',
+  'Top action auto-simulated',
 ];
 
 const ACTIVE_STEP_MESSAGES = [
   'Validating and detecting input type',
   'Cleaning and preparing the source',
   'Calling AI model and generating recommendations',
+  'Running auto-simulation on the highest-priority action',
 ];
 
 export type StepStatus = 'completed' | 'active' | 'pending' | 'failed';
@@ -68,6 +74,12 @@ const INITIAL_STEPS: WorkflowStep[] = [
     id: 'analyze',
     label: 'Extracting insights and actions',
     subLabel: 'Insights, implications, recommendations',
+    status: 'pending',
+  },
+  {
+    id: 'simulate',
+    label: 'Auto-simulating top action',
+    subLabel: 'Running simulation on the highest-priority action',
     status: 'pending',
   },
 ];
@@ -310,9 +322,11 @@ export function useAnalysisJob(jobId: string | undefined): UseAnalysisJobResult 
 
         case 'content_normalized': {
           const payload = msg.payload as ContentNormalizedPayload;
+          // Steps 0 (IngestInput) and 1 (NormalizeContent) are done.
+          // Step 2 (ContentToActionNode) will be activated by the
+          // node_started event that fires immediately after.
           markStepCompleted(1);
           setProgress(20);
-          activateNode('ContentToActionNode');
           if (payload.normalizedLength > 0) {
             setErrorMessage(null);
           }
@@ -327,7 +341,10 @@ export function useAnalysisJob(jobId: string | undefined): UseAnalysisJobResult 
 
         case 'content_analyzed': {
           const payload = msg.payload as ContentAnalyzedPayload;
-          markAllCompleted();
+          // Step 3 (ContentToActionNode) is done — do NOT mark all completed yet.
+          // awaiting_approval → action_simulated → outcome_updated still need to fire.
+          markStepCompleted(2);
+          setProgress(60);
           if (payload.actionCount >= 0) {
             setErrorMessage(null);
           }
@@ -336,10 +353,31 @@ export function useAnalysisJob(jobId: string | undefined): UseAnalysisJobResult 
 
         case 'awaiting_approval': {
           const payload = msg.payload as AwaitingApprovalPayload;
-          markAllCompleted();
+          // Workflow 1 is done but WS stays open — auto-simulation follows immediately.
+          // Mark the first 3 steps complete and activate the 4th (simulation) step.
+          markStepCompleted(2);
+          markStepActive(3);
+          setProgress(80);
           setClarificationQuestion(
-            `${payload.pendingApprovals.length} action(s) need approval.`,
+            `${payload.pendingApprovals.length} action(s) ready — running auto-simulation…`,
           );
+          break;
+        }
+
+        case 'action_simulated': {
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const _payload = msg.payload as ActionSimulatedPayload;
+          // The highest-priority action has been simulated.
+          // Keep the 4th step active while we wait for outcome_updated.
+          setProgress(90);
+          break;
+        }
+
+        case 'outcome_updated': {
+          const ouPayload = msg.payload as OutcomeUpdatedPayload;
+          // Outcome is rebuilt — this is the true terminal event of the full flow.
+          markAllCompleted();
+          setClarificationQuestion(ouPayload.outcome.summary);
           break;
         }
 
@@ -364,7 +402,7 @@ export function useAnalysisJob(jobId: string | undefined): UseAnalysisJobResult 
           break;
       }
     },
-    [activateNode, inferFailedStepIndex, markAllCompleted, markStepCompleted, markStepFailed, summarizeWorkflowError],
+    [activateNode, inferFailedStepIndex, markAllCompleted, markStepActive, markStepCompleted, markStepFailed, summarizeWorkflowError],
   );
 
   const handleTerminalMessage = useCallback(
@@ -384,6 +422,8 @@ export function useAnalysisJob(jobId: string | undefined): UseAnalysisJobResult 
     [inferFailedStepIndex, markAllCompleted, markStepFailed, summarizeWorkflowError],
   );
 
+  const wsConnectedRef = useRef(false);
+
   useEffect(() => {
     if (!jobId) {
       resetState();
@@ -392,48 +432,66 @@ export function useAnalysisJob(jobId: string | undefined): UseAnalysisJobResult 
 
     let isMounted = true;
     let pollTimer: ReturnType<typeof setInterval> | undefined;
+    wsConnectedRef.current = false;
     resetState();
 
+    const stopPolling = () => {
+      if (pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = undefined;
+      }
+    };
+
     const loadJobSnapshot = () => {
+      // Skip poll cycle if WS is handling events.
+      if (wsConnectedRef.current) {
+        stopPolling();
+        return;
+      }
+
       getAnalysisJob(jobId)
         .then(job => {
-          if (isMounted) {
-            applyJobSnapshot(job);
-            if (TERMINAL_JOB_STATUSES.includes(job.status)) {
-              if (pollTimer) {
-                clearInterval(pollTimer);
-              }
-            }
+          if (!isMounted) { return; }
+          applyJobSnapshot(job);
+          if (TERMINAL_JOB_STATUSES.includes(job.status)) {
+            stopPolling();
           }
         })
-        .catch(error => {
+        .catch(err => {
           if (isMounted) {
             setErrorMessage(
-              error instanceof Error ? error.message : 'Could not load job.',
+              err instanceof Error ? err.message : 'Could not load job.',
             );
           }
         });
     };
 
+    // One immediate fetch so the UI has data before WS connects.
     loadJobSnapshot();
+
+    // Start polling as a fallback — cancelled as soon as WS connects.
     pollTimer = setInterval(loadJobSnapshot, JOB_POLL_INTERVAL_MS);
 
     const client = clientRef.current;
     client.connect(
       jobId,
       handleMessage,
-      undefined,
+      // onOpen: WS is live — stop the poll loop immediately.
+      () => {
+        wsConnectedRef.current = true;
+        stopPolling();
+      },
       handleTerminalMessage,
     );
 
     return () => {
       isMounted = false;
-      if (pollTimer) {
-        clearInterval(pollTimer);
-      }
+      stopPolling();
+      wsConnectedRef.current = false;
       client.disconnect();
     };
   }, [applyJobSnapshot, handleMessage, handleTerminalMessage, jobId, resetState]);
+
 
   const activeStep = steps.find(step => step.status === 'active');
 

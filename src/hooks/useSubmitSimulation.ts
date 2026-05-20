@@ -3,6 +3,8 @@ import { simulateAnalysisAction } from '../services/analysisApi';
 
 interface UseSubmitSimulationResult {
   isSubmitting: boolean;
+  /** The actionId currently being simulated, null when idle. */
+  simulatingActionId: string | null;
   error: string | null;
   /** Returns the simulationId on success, null on failure. */
   triggerSimulation: (jobId: string, actionId: string) => Promise<string | null>;
@@ -15,11 +17,13 @@ interface UseSubmitSimulationResult {
  */
 export function useSubmitSimulation(): UseSubmitSimulationResult {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [simulatingActionId, setSimulatingActionId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const triggerSimulation = useCallback(
     async (jobId: string, actionId: string): Promise<string | null> => {
       setIsSubmitting(true);
+      setSimulatingActionId(actionId);
       setError(null);
 
       try {
@@ -32,10 +36,11 @@ export function useSubmitSimulation(): UseSubmitSimulationResult {
         return null;
       } finally {
         setIsSubmitting(false);
+        setSimulatingActionId(null);
       }
     },
     [],
   );
 
-  return { isSubmitting, error, triggerSimulation };
+  return { isSubmitting, simulatingActionId, error, triggerSimulation };
 }

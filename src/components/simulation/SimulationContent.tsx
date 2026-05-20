@@ -4,42 +4,30 @@ import type { ActionSimulation } from '../../types/analysis';
 import { colors } from '../../theme/colors';
 import { spacing } from '../../theme/spacing';
 import { STICKY_PAGE_ACTIONS_HEIGHT } from '../StickyPageActions';
+import { toDisplayTextArray } from '../../utils/displayText';
 import { SimulationHeroCard } from './SimulationHeroCard';
-import { SimulationTargetAction } from './SimulationTargetAction';
 import { SimulationMetricTransitionsSection } from './SimulationMetricTransitionsSection';
 import {
   SimulationAssumptionsSection,
   SimulationEvidenceSection,
   SimulationRisksSection,
 } from './SimulationSections';
-import { SimulationOutcomeScore } from './SimulationOutcomeScore';
 import { SimulationProjectedOutcome } from './SimulationProjectedOutcome';
-import { toDisplayTextArray } from '../../utils/displayText';
 
 interface SimulationContentProps {
   simulation: ActionSimulation;
+  /** Firestore document ID for this simulation record. */
+  simulationId: string;
 }
 
-/**
- * Full simulation result layout matching the updated design:
- *
- *  1. Hero (simulation ID, title, confidence badge)
- *  2. Target Action card (action title, owner, duration, type)
- *  3. Expected Metric Transitions
- *  4. Key Assumptions
- *  5. Remaining Risks
- *  6. Evidence Used
- *  7. Overall Outcome Score (dark animated circle)
- *  8. Projected Outcome
- *  ─────────────────────────────────────────
- */
 export const SimulationContent: React.FC<SimulationContentProps> = ({
   simulation,
+  simulationId,
 }) => {
   const expectedChanges = simulation.expectedChanges ?? [];
-  const assumptions     = toDisplayTextArray(simulation.assumptions);
-  const risks           = toDisplayTextArray(simulation.risks);
-  const evidenceUsed    = toDisplayTextArray(simulation.evidenceUsed);
+  const assumptions = toDisplayTextArray(simulation.assumptions);
+  const risks = toDisplayTextArray(simulation.risks);
+  const evidenceUsed = toDisplayTextArray(simulation.evidenceUsed);
 
   return (
     <View style={styles.outer}>
@@ -48,45 +36,29 @@ export const SimulationContent: React.FC<SimulationContentProps> = ({
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* 1 ─ Hero header */}
         <SimulationHeroCard
-          actionId={simulation.actionId}
+          simulationId={simulationId}
           actionTitle={simulation.actionTitle}
           confidence={simulation.confidence ?? 0}
         />
 
-        {/* 2 ─ Target action */}
-        <SimulationTargetAction
-          actionTitle={simulation.actionTitle}
-          actionType={simulation.actionType}
-          parameters={simulation.parameters ?? {}}
-        />
+        {simulation.projectedOutcome ? (
+          <SimulationProjectedOutcome text={simulation.projectedOutcome} />
+        ) : null}
 
-        {/* 3 ─ Metric transitions */}
-        <SimulationMetricTransitionsSection changes={expectedChanges} />
-
-        {/* 4 ─ Key assumptions */}
         {assumptions.length > 0 && (
           <SimulationAssumptionsSection items={assumptions} />
         )}
 
-        {/* 5 ─ Remaining risks */}
-        {risks.length > 0 && (
-          <SimulationRisksSection items={risks} />
-        )}
+        <SimulationMetricTransitionsSection changes={expectedChanges} />
 
-        {/* 6 ─ Evidence used */}
         {evidenceUsed.length > 0 && (
           <SimulationEvidenceSection items={evidenceUsed} />
         )}
 
-        {/* 7 ─ Overall outcome score */}
-        <SimulationOutcomeScore confidence={simulation.confidence ?? 0} />
-
-        {/* 8 ─ Projected outcome */}
-        {simulation.projectedOutcome ? (
-          <SimulationProjectedOutcome text={simulation.projectedOutcome} />
-        ) : null}
+        {risks.length > 0 && (
+          <SimulationRisksSection items={risks} />
+        )}
 
         <View style={styles.bottomSpacer} />
       </ScrollView>
@@ -95,8 +67,18 @@ export const SimulationContent: React.FC<SimulationContentProps> = ({
 };
 
 const styles = StyleSheet.create({
-  outer:         { flex: 1, backgroundColor: colors.background },
-  scroll:        { flex: 1 },
-  content:       { padding: spacing.marginMobile, gap: spacing.stackMd },
-  bottomSpacer:  { height: STICKY_PAGE_ACTIONS_HEIGHT },
+  outer: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  scroll: {
+    flex: 1,
+  },
+  content: {
+    padding: spacing.marginMobile,
+    gap: spacing.stackMd,
+  },
+  bottomSpacer: {
+    height: STICKY_PAGE_ACTIONS_HEIGHT,
+  },
 });

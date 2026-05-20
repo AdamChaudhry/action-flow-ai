@@ -4,6 +4,7 @@ import type { NavigatorScreenParams } from '@react-navigation/native';
 import { AnalyzeStackNavigator } from './AnalyzeStackNavigator';
 import { ActionsStackNavigator } from './ActionsStackNavigator';
 import type { AnalyzeStackParamList } from './AnalyzeStackNavigator';
+import { AnalysisResultProvider } from '../context/AnalysisResultContext';
 
 export type MainTabParamList = {
   Analyze: NavigatorScreenParams<AnalyzeStackParamList> | undefined;
@@ -14,22 +15,24 @@ const Tab = createBottomTabNavigator<MainTabParamList>();
 
 export const MainTabNavigator = () => {
   return (
-    <Tab.Navigator
-      screenOptions={{
-        headerShown: false,
-        tabBarStyle: {
-          display: 'none',
-        },
-      }}
-    >
-      <Tab.Screen
-        name="Analyze"
-        component={AnalyzeStackNavigator}
-      />
-      <Tab.Screen
-        name="Actions"
-        component={ActionsStackNavigator}
-      />
-    </Tab.Navigator>
+    <AnalysisResultProvider>
+      <Tab.Navigator
+        screenOptions={{
+          headerShown: false,
+          tabBarStyle: {
+            display: 'none',
+          },
+        }}
+      >
+        <Tab.Screen
+          name="Analyze"
+          component={AnalyzeStackNavigator}
+        />
+        <Tab.Screen
+          name="Actions"
+          component={ActionsStackNavigator}
+        />
+      </Tab.Navigator>
+    </AnalysisResultProvider>
   );
 };

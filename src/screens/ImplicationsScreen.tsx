@@ -9,23 +9,22 @@ import {
   ImplicationsLoadingState,
 } from '../components/implications/ImplicationsStateView';
 import { colors } from '../theme/colors';
-import { useImplications } from '../hooks/useImplications';
+import { useAnalysisResult } from '../context/AnalysisResultContext';
 import type { AnalyzeStackParamList } from '../navigation/AnalyzeStackNavigator';
 import type { MainTabParamList } from '../navigation/MainTabNavigator';
 
-type ImplicationsNavProp = NativeStackNavigationProp<
-  AnalyzeStackParamList,
-  'Implications'
->;
+type ImplicationsNavProp = NativeStackNavigationProp<AnalyzeStackParamList, 'Implications'>;
 type ImplicationsRouteProp = RouteProp<AnalyzeStackParamList, 'Implications'>;
 type RootTabNavigationProp = BottomTabNavigationProp<MainTabParamList>;
 
 export const ImplicationsScreen: React.FC = () => {
-  const route = useRoute<ImplicationsRouteProp>();
+  const route      = useRoute<ImplicationsRouteProp>();
   const navigation = useNavigation<ImplicationsNavProp>();
-  const jobId = route.params?.jobId;
+  const jobId      = route.params?.jobId;
 
-  const { implications, isLoading, error, refetch } = useImplications(jobId);
+  // Read directly from the cached result — no API call needed.
+  const { result } = useAnalysisResult();
+  const implications = result?.implications ?? [];
 
   const navigateToActions = useCallback((implicationId: string) => {
     navigation.getParent<RootTabNavigationProp>()?.navigate('Actions', {
@@ -39,26 +38,16 @@ export const ImplicationsScreen: React.FC = () => {
     return implications.filter(imp => imp.relatedInsightIds.includes(route.params!.insightId!));
   }, [implications, route.params?.insightId]);
 
-  if (isLoading && filteredImplications.length === 0) {
+  // Context not loaded yet (shouldn't normally happen — InsightsScreen always runs first).
+  if (!result) {
     return <ImplicationsLoadingState />;
   }
 
-  if (error && filteredImplications.length === 0) {
+  if (filteredImplications.length === 0) {
     return (
       <ImplicationsFeedbackState
-        title="Something went wrong"
-        message={error}
-        onRetry={refetch}
-      />
-    );
-  }
-
-  if (!isLoading && filteredImplications.length === 0) {
-    return (
-      <ImplicationsFeedbackState
-        title="No implications yet"
-        message="Implications will appear once the analysis identifies business impacts."
-        onRetry={refetch}
+        title="No implications"
+        message="No implications are linked to this insight."
       />
     );
   }
@@ -67,8 +56,8 @@ export const ImplicationsScreen: React.FC = () => {
     <View style={styles.outerContainer}>
       <ImplicationsContent
         implications={filteredImplications}
-        isRefreshing={isLoading}
-        onRefresh={refetch}
+        isRefreshing={false}
+        onRefresh={() => {}}
         onViewActions={navigateToActions}
       />
     </View>

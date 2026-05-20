@@ -1,5 +1,5 @@
 import React from 'react';
-import { StatusBar, StyleSheet, View } from 'react-native';
+import { BackHandler, StatusBar, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { createNavigationContainerRef, NavigationContainer } from '@react-navigation/native';
 import {
@@ -10,21 +10,25 @@ import { Header } from './src/components/Header';
 import { colors } from './src/theme/colors';
 
 const navigationRef = createNavigationContainerRef<MainTabParamList>();
+const HIDDEN_BACK_ROUTES = ['Insights', 'SimulationResult'];
+
+function shouldRestrictBack(): boolean {
+  if (!navigationRef.isReady()) {
+    return true;
+  }
+
+  const currentRouteName = navigationRef.getCurrentRoute()?.name as string | undefined;
+  return (
+    !navigationRef.canGoBack() ||
+    HIDDEN_BACK_ROUTES.includes(currentRouteName ?? '')
+  );
+}
 
 function App() {
   const [canGoBack, setCanGoBack] = React.useState(false);
 
   const syncHeaderBackState = React.useCallback(() => {
-    if (!navigationRef.isReady()) {
-      setCanGoBack(false);
-      return;
-    }
-
-    const currentRouteName = navigationRef.getCurrentRoute()?.name as string | undefined;
-    const hiddenBackRoutes = ['Insights', 'SimulationResult'];
-    setCanGoBack(
-      navigationRef.canGoBack() && !hiddenBackRoutes.includes(currentRouteName ?? ''),
-    );
+    setCanGoBack(!shouldRestrictBack());
   }, []);
 
   const handleStartAnalysis = React.useCallback(() => {
@@ -51,6 +55,21 @@ function App() {
     if (navigationRef.isReady() && navigationRef.canGoBack()) {
       navigationRef.goBack();
     }
+  }, []);
+
+  React.useEffect(() => {
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (shouldRestrictBack()) {
+        return true;
+      }
+
+      navigationRef.goBack();
+      return true;
+    });
+
+    return () => {
+      subscription.remove();
+    };
   }, []);
 
   return (

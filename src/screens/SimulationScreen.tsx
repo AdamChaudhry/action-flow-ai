@@ -43,10 +43,10 @@ export const SimulationScreen: React.FC = () => {
 
   return (
     <View style={styles.outer}>
-      <SimulationContent simulation={simulation} />
+      <SimulationContent simulation={simulation} simulationId={simulationId} />
       <StickyPageActions
         nextTitle="Complete"
-        isNextDisabled
+        onBack={navigation.goBack}
       />
     </View>
   );

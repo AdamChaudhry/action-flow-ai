@@ -7,7 +7,7 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
-import { AlertCircle, RefreshCw } from 'lucide-react-native';
+import { AlertCircle, Eye, RefreshCw } from 'lucide-react-native';
 import { Typography } from '../Typography';
 import { colors } from '../../theme/colors';
 import { rounded, spacing } from '../../theme/spacing';
@@ -32,13 +32,18 @@ const LEVEL_COLOR: Record<Level, string> = {
 interface FeaturedActionCardProps {
   action: RecommendedAction;
   onSimulate?: () => void;
+  onViewResult?: () => void;
   isSimulating?: boolean;
+  /** True once at least one simulation has completed for this action. */
+  isSimulated?: boolean;
 }
 
 interface ActionButtonsProps {
   requiresHumanApproval: boolean;
   onSimulate?: () => void;
+  onViewResult?: () => void;
   isSimulating?: boolean;
+  isSimulated?: boolean;
 }
 
 const PriorityBadge: React.FC<{ priority: ActionPriority }> = ({ priority }) => {
@@ -92,7 +97,9 @@ function deriveRiskLevel(priority: ActionPriority): Level {
 const ActionButtons: React.FC<ActionButtonsProps> = ({
   requiresHumanApproval,
   onSimulate,
+  onViewResult,
   isSimulating,
+  isSimulated,
 }) => {
   const scale = useRef(new Animated.Value(1)).current;
   const pulse = useRef(new Animated.Value(0)).current;
@@ -122,39 +129,62 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
     );
 
     animation.start();
-
-    return () => {
-      animation.stop();
-    };
+    return () => { animation.stop(); };
   }, [isSimulating, pulse]);
 
   const handlePressIn = () => {
-    Animated.spring(scale, {
-      toValue: 0.97,
-      speed: 28,
-      bounciness: 4,
-      useNativeDriver: true,
-    }).start();
+    Animated.spring(scale, { toValue: 0.97, speed: 28, bounciness: 4, useNativeDriver: true }).start();
   };
 
   const handlePressOut = () => {
-    Animated.spring(scale, {
-      toValue: 1,
-      speed: 28,
-      bounciness: 5,
-      useNativeDriver: true,
-    }).start();
+    Animated.spring(scale, { toValue: 1, speed: 28, bounciness: 5, useNativeDriver: true }).start();
   };
 
-  const pulseOpacity = pulse.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0.08, 0.22],
-  });
-  const pulseScale = pulse.interpolate({
-    inputRange: [0, 1],
-    outputRange: [1, 1.04],
-  });
+  const pulseOpacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.08, 0.22] });
+  const pulseScale   = pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.04] });
 
+  // ── Simulated state: View Result + Rerun ─────────────────────────────────
+  if (isSimulated) {
+    return (
+      <View style={button.row}>
+        {/* View Simulation Result */}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="View simulation result"
+          style={[button.simulate, button.viewResult]}
+          onPress={onViewResult}
+        >
+          <Eye size={14} color={colors.primary} />
+          <Typography variant="labelMd" color={colors.primary}>View Result</Typography>
+        </Pressable>
+
+        {/* Rerun Simulation */}
+        <Animated.View style={{ transform: [{ scale }] }}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Rerun simulation"
+            accessibilityState={{ busy: Boolean(isSimulating), disabled: Boolean(isSimulating) }}
+            disabled={isSimulating}
+            onPress={onSimulate}
+            onPressIn={handlePressIn}
+            onPressOut={handlePressOut}
+            style={[button.simulate, button.rerun, isSimulating && button.simulateBusy]}
+          >
+            {isSimulating ? (
+              <ActivityIndicator size="small" color={colors.textSecondary} />
+            ) : (
+              <RefreshCw size={14} color={colors.textSecondary} />
+            )}
+            <Typography variant="labelMd" color={colors.textSecondary}>
+              {isSimulating ? 'Running...' : 'Rerun'}
+            </Typography>
+          </Pressable>
+        </Animated.View>
+      </View>
+    );
+  }
+
+  // ── Default state: Simulate ───────────────────────────────────────────────
   return (
     <Animated.View style={{ transform: [{ scale }] }}>
       <Pressable
@@ -168,17 +198,14 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
         onPress={onSimulate}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
-        style={[button.simulate, isSimulating && button.simulateBusy]}
+        style={[button.simulate, button.simulatePrimary, isSimulating && button.simulateBusy]}
       >
         {isSimulating && (
           <Animated.View
             pointerEvents="none"
             style={[
               button.pulseOverlay,
-              {
-                opacity: pulseOpacity,
-                transform: [{ scale: pulseScale }],
-              },
+              { opacity: pulseOpacity, transform: [{ scale: pulseScale }] },
             ]}
           />
         )}
@@ -189,9 +216,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
         )}
         <Typography variant="labelMd" color="#FFFFFF">
           {isSimulating
-            ? requiresHumanApproval
-              ? 'Starting...'
-              : 'Simulating...'
+            ? requiresHumanApproval ? 'Starting...' : 'Simulating...'
             : 'Simulate'}
         </Typography>
       </Pressable>
@@ -202,7 +227,9 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
 export const FeaturedActionCard: React.FC<FeaturedActionCardProps> = ({
   action,
   onSimulate,
+  onViewResult,
   isSimulating,
+  isSimulated,
 }) => {
   const opacity = useRef(new Animated.Value(1)).current;
   const translateY = useRef(new Animated.Value(0)).current;
@@ -263,7 +290,9 @@ export const FeaturedActionCard: React.FC<FeaturedActionCardProps> = ({
       <ActionButtons
         requiresHumanApproval={action.requiresHumanApproval}
         onSimulate={onSimulate}
+        onViewResult={onViewResult}
         isSimulating={isSimulating}
+        isSimulated={isSimulated}
       />
     </Animated.View>
   );
@@ -287,6 +316,10 @@ const metric = StyleSheet.create({
 });
 
 const button = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    gap: spacing.stackSm,
+  },
   simulate: {
     flex: 1,
     flexDirection: 'row',
@@ -294,9 +327,23 @@ const button = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     overflow: 'hidden',
-    backgroundColor: colors.primary,
     borderRadius: rounded.md,
     paddingVertical: 12,
+  },
+  simulatePrimary: {
+    backgroundColor: colors.primary,
+  },
+  viewResult: {
+    backgroundColor: colors.surfaceContainerLow,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  rerun: {
+    flex: 0,
+    paddingHorizontal: spacing.stackMd,
+    backgroundColor: colors.surfaceContainerLow,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   simulateBusy: {
     opacity: 0.86,

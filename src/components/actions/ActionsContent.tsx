@@ -3,7 +3,6 @@ import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import type { RecommendedAction } from '../../types/analysis';
 import { colors } from '../../theme/colors';
 import { spacing } from '../../theme/spacing';
-import { STICKY_PAGE_ACTIONS_HEIGHT } from '../StickyPageActions';
 import { ActionsListSection } from './ActionsListSection';
 
 interface ActionsContentProps {
@@ -11,7 +10,8 @@ interface ActionsContentProps {
   isRefreshing: boolean;
   onRefresh: () => void;
   onSimulate: (actionId: string) => void;
-  isSimulating: boolean;
+  onViewResult: (simulationId: string) => void;
+  simulatingActionId: string | null;
 }
 
 export const ActionsContent: React.FC<ActionsContentProps> = ({
@@ -19,7 +19,8 @@ export const ActionsContent: React.FC<ActionsContentProps> = ({
   isRefreshing,
   onRefresh,
   onSimulate,
-  isSimulating,
+  onViewResult,
+  simulatingActionId,
 }) => (
   <ScrollView
     style={styles.container}
@@ -33,7 +34,12 @@ export const ActionsContent: React.FC<ActionsContentProps> = ({
       />
     }
   >
-    <ActionsListSection actions={actions} onSimulate={onSimulate} isSimulating={isSimulating} />
+    <ActionsListSection
+      actions={actions}
+      onSimulate={onSimulate}
+      onViewResult={onViewResult}
+      simulatingActionId={simulatingActionId}
+    />
     <View style={styles.bottomSpacer} />
   </ScrollView>
 );
@@ -48,6 +54,6 @@ const styles = StyleSheet.create({
     gap: spacing.stackMd,
   },
   bottomSpacer: {
-    height: STICKY_PAGE_ACTIONS_HEIGHT,
+    height: 80,
   },
 });

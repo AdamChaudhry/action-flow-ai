@@ -9,13 +9,15 @@ import { FeaturedActionCard } from './FeaturedActionCard';
 interface ActionsListSectionProps {
   actions: RecommendedAction[];
   onSimulate: (actionId: string) => void;
-  isSimulating: boolean;
+  onViewResult: (simulationId: string) => void;
+  simulatingActionId: string | null;
 }
 
 export const ActionsListSection: React.FC<ActionsListSectionProps> = ({
   actions,
   onSimulate,
-  isSimulating,
+  onViewResult,
+  simulatingActionId,
 }) => {
   const [featuredActionId, setFeaturedActionId] = useState<string | null>(
     actions[0]?.id ?? null,
@@ -70,7 +72,13 @@ export const ActionsListSection: React.FC<ActionsListSectionProps> = ({
               key={action.id}
               action={action}
               onSimulate={() => onSimulate(action.id)}
-              isSimulating={isSimulating}
+              onViewResult={() => {
+                const ids = action.simulationIds;
+                const lastId = ids && ids.length > 0 ? ids[ids.length - 1] : undefined;
+                if (lastId) { onViewResult(lastId); }
+              }}
+              isSimulating={simulatingActionId === action.id}
+              isSimulated={(action.simulationIds?.length ?? 0) > 0}
             />
           ) : (
             <CompactActionCard

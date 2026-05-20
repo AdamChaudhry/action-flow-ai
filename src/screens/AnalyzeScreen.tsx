@@ -1,17 +1,16 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Keyboard, ScrollView, StyleSheet, View } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, Keyboard, ScrollView, StyleSheet, View } from 'react-native';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { ArrowRight } from 'lucide-react-native';
 import { ContentInputSection } from '../components/analyze/ContentInputSection';
 import { WorkflowTimelineCard } from '../components/analyze/WorkflowTimelineCard';
-import {
-  StickyPageActions,
-  STICKY_PAGE_ACTIONS_HEIGHT,
-} from '../components/StickyPageActions';
+import { Button } from '../components/Button';
 import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
 import { useAnalysisJob } from '../hooks/useAnalysisJob';
 import { useSubmitAnalysis } from '../hooks/useSubmitAnalysis';
+import { useAnalysisResult } from '../context/AnalysisResultContext';
 import type { AnalyzeStackParamList } from '../navigation/AnalyzeStackNavigator';
 
 type AnalyzeNavProp = NativeStackNavigationProp<AnalyzeStackParamList, 'AnalyzeInput'>;
@@ -19,9 +18,8 @@ type AnalyzeRouteProp = RouteProp<AnalyzeStackParamList, 'AnalyzeInput'>;
 
 export const AnalyzeScreen: React.FC = () => {
   const navigation = useNavigation<AnalyzeNavProp>();
-  const route = useRoute<AnalyzeRouteProp>();
+  const route      = useRoute<AnalyzeRouteProp>();
   const [activeJobId, setActiveJobId] = useState<string | undefined>();
-  const hasNavigatedToInsightsRef = useRef(false);
 
   const {
     textContent,
@@ -38,44 +36,40 @@ export const AnalyzeScreen: React.FC = () => {
   } = useSubmitAnalysis();
 
   const { steps, jobState, activeStepLabel } = useAnalysisJob(activeJobId);
-  const isAnalyzing = activeJobId !== undefined && jobState === 'processing';
-  const isAnalysisCompleted = activeJobId !== undefined && jobState === 'completed';
-  const isAnalysisFailed = activeJobId !== undefined && jobState === 'failed';
+  const { clearResult } = useAnalysisResult();
 
+  const isJobActive         = activeJobId !== undefined;
+  const isAnalyzing         = isJobActive && jobState === 'processing';
+  const isAnalysisCompleted = isJobActive && jobState === 'completed';
+  const isAnalysisFailed    = isJobActive && jobState === 'failed';
+
+  // Reset the form when a reset token is passed (e.g. from a "New Analysis" action).
   useEffect(() => {
     if (route.params?.resetToken === undefined) {
       return;
     }
-
+    clearResult();
     reset();
     setActiveJobId(undefined);
-    hasNavigatedToInsightsRef.current = false;
-  }, [reset, route.params?.resetToken]);
-
-  useEffect(() => {
-    if (
-      jobState === 'completed' &&
-      activeJobId &&
-      !hasNavigatedToInsightsRef.current
-    ) {
-      hasNavigatedToInsightsRef.current = true;
-      navigation.navigate('Insights', { jobId: activeJobId });
-    }
-  }, [activeJobId, jobState, navigation]);
+  }, [clearResult, reset, route.params?.resetToken]);
 
   const handleSubmit = useCallback(async () => {
     Keyboard.dismiss();
-
     if (isAnalyzing) {
       return;
     }
-
     const jobId = await submit();
     if (jobId) {
-      hasNavigatedToInsightsRef.current = false;
       setActiveJobId(jobId);
     }
   }, [isAnalyzing, submit]);
+
+  const handleSeeInsights = useCallback(() => {
+    if (!activeJobId) {
+      return;
+    }
+    navigation.navigate('Insights', { jobId: activeJobId });
+  }, [activeJobId, navigation]);
 
   return (
     <View style={styles.container}>
@@ -84,18 +78,35 @@ export const AnalyzeScreen: React.FC = () => {
         contentContainerStyle={styles.contentContainer}
         keyboardShouldPersistTaps="handled"
       >
-        <ContentInputSection
-          textContent={textContent}
-          pickedFile={pickedFile}
-          pickedImage={pickedImage}
-          onTextChange={setTextContent}
-          onPickDocument={pickDocument}
-          onPickImage={pickImage}
-          onClearFile={clearFile}
-          onClearImage={clearImage}
-        />
+        {/* ── Input card + Start button — hidden once a job is submitted ── */}
+        {!isJobActive && (
+          <>
+            <ContentInputSection
+              textContent={textContent}
+              pickedFile={pickedFile}
+              pickedImage={pickedImage}
+              onTextChange={setTextContent}
+              onPickDocument={pickDocument}
+              onPickImage={pickImage}
+              onClearFile={clearFile}
+              onClearImage={clearImage}
+            />
 
-        {activeJobId && (
+            <Button
+              title={isSubmitting ? 'Starting…' : 'Start Analysis'}
+              onPress={handleSubmit}
+              disabled={isSubmitting}
+              icon={
+                isSubmitting
+                  ? <ActivityIndicator size="small" color={colors.primaryInverse} />
+                  : <ArrowRight size={16} color={colors.primaryInverse} />
+              }
+            />
+          </>
+        )}
+
+        {/* ── Workflow timeline — visible once job is submitted ──────── */}
+        {isJobActive && (
           <WorkflowTimelineCard
             steps={steps}
             activeStepLabel={activeStepLabel}
@@ -104,16 +115,17 @@ export const AnalyzeScreen: React.FC = () => {
           />
         )}
 
+        {/* ── See Insights button — visible only after completion ────── */}
+        {isAnalysisCompleted && (
+          <Button
+            title="See Insights"
+            onPress={handleSeeInsights}
+            icon={<ArrowRight size={16} color={colors.primaryInverse} />}
+          />
+        )}
+
         <View style={styles.bottomSpacer} />
       </ScrollView>
-
-      <StickyPageActions
-        nextTitle="Start"
-        onNext={handleSubmit}
-        isNextDisabled={isSubmitting || isAnalyzing}
-        isNextBusy={isSubmitting || isAnalyzing}
-        busyNextTitle="Starting..."
-      />
     </View>
   );
 };
@@ -129,8 +141,9 @@ const styles = StyleSheet.create({
   contentContainer: {
     padding: spacing.marginMobile,
     gap: spacing.stackMd,
+    paddingBottom: spacing.stackLg,
   },
   bottomSpacer: {
-    height: STICKY_PAGE_ACTIONS_HEIGHT,
+    height: 8,
   },
 });

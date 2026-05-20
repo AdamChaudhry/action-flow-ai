@@ -14,7 +14,10 @@ const Stack = createNativeStackNavigator<AnalyzeStackParamList>();
 
 /**
  * Stack navigator for the Analyze flow:
- *   AnalyzeInput -> Insights -> Implications
+ *   AnalyzeInput → Insights → Implications
+ *
+ * AnalysisResultProvider is at MainTabNavigator level so it spans
+ * both this stack and the Actions tab stack.
  */
 export const AnalyzeStackNavigator: React.FC = () => {
   return (

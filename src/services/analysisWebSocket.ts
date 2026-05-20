@@ -2,7 +2,6 @@ import { WS_BASE_URL } from '../constants/config';
 import type { WsEventType, WsMessage } from '../types/analysis';
 
 type MessageHandler = (msg: WsMessage) => void;
-type ErrorHandler = () => void;
 type TerminalStatus = 'success' | 'failed';
 type TerminalHandler = (msg: WsMessage, status: TerminalStatus) => void;
 
@@ -13,7 +12,7 @@ type TerminalHandler = (msg: WsMessage, status: TerminalStatus) => void;
 export class AnalysisWebSocketClient {
   private ws: WebSocket | null = null;
   private readonly successfulTerminalEvents: WsEventType[] = [
-    'awaiting_approval',
+    'outcome_updated',
     'workflow_completed',
   ];
   private readonly failedTerminalEvents: WsEventType[] = [
@@ -23,7 +22,7 @@ export class AnalysisWebSocketClient {
   connect(
     jobId: string,
     onMessage: MessageHandler,
-    onError: ErrorHandler = () => {},
+    onOpen: () => void = () => {},
     onTerminal: TerminalHandler = () => {},
   ): void {
     if (this.ws) {
@@ -39,6 +38,8 @@ export class AnalysisWebSocketClient {
           payload: { jobId },
         }),
       );
+      // Signal to the caller that the connection is live.
+      onOpen();
     };
 
     this.ws.onmessage = event => {
@@ -58,13 +59,14 @@ export class AnalysisWebSocketClient {
     };
 
     this.ws.onerror = () => {
-      onError();
+      // WS failed — caller's poll fallback will take over.
     };
 
     this.ws.onclose = () => {
       this.ws = null;
     };
   }
+
 
   disconnect(): void {
     this.ws?.close();

@@ -116,6 +116,8 @@ export interface RecommendedAction {
   requiresHumanApproval: boolean;
   expectedImpact: string;
   parameters: Record<string, unknown>;
+  /** Ordered list of simulation IDs for this action. Last entry is the most recent. */
+  simulationIds?: string[];
 }
 
 export interface PendingApproval {

@@ -5,48 +5,42 @@ import { colors } from '../../theme/colors';
 import { spacing, rounded } from '../../theme/spacing';
 import { toDisplayText } from '../../utils/displayText';
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function formatSimulationId(rawId: string): string {
-  // Show last 8 chars formatted as "SF-XXXX-XX"
-  const clean = toDisplayText(rawId).replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-  const short  = clean.slice(-8).padStart(8, '0');
-  return `SF-${short.slice(0, 4)}-${short.slice(4)}`;
-}
-
-// ─── Component ────────────────────────────────────────────────────────────────
-
 interface SimulationHeroCardProps {
-  actionId: string;
+  simulationId: string;
   actionTitle: string;
   /** confidence from ActionSimulation — 0.0 to 1.0 */
   confidence: number;
 }
 
 /**
- * Light-background header card that matches the updated design:
- * - Small "SIMULATION ID" label
- * - Large bold title "Simulation Result: <actionTitle>"
- * - Dark pill badge showing confidence %
+ * Title card for the Simulation Result screen:
+ *   - "Simulation Result" — small label
+ *   - Action name — large headline
+ *   - Actual Firestore simulation ID
+ *   - Confidence pill badge
  */
 export const SimulationHeroCard: React.FC<SimulationHeroCardProps> = ({
-  actionId,
+  simulationId,
   actionTitle,
   confidence,
 }) => {
   const pct = Math.round(confidence * 100);
-  const simId = formatSimulationId(actionId);
 
   return (
     <View style={styles.card}>
-      {/* Simulation ID label */}
-      <Typography variant="labelSm" color={colors.textTertiary} style={styles.idLabel}>
-        SIMULATION ID: {simId}
+      {/* Screen label */}
+      <Typography variant="labelMd" color={colors.textSecondary} style={styles.screenLabel}>
+        Simulation Result
       </Typography>
 
-      {/* Main title */}
+      {/* Action title — main headline */}
       <Typography variant="headlineLg" style={styles.title}>
-        Simulation Result: {toDisplayText(actionTitle)}
+        {toDisplayText(actionTitle)}
+      </Typography>
+
+      {/* Real Firestore simulation ID */}
+      <Typography variant="labelSm" color={colors.textTertiary} style={styles.idLabel}>
+        ID: {simulationId}
       </Typography>
 
       {/* Confidence pill */}
@@ -68,11 +62,15 @@ const styles = StyleSheet.create({
     padding: spacing.gutter,
     gap: spacing.stackSm,
   },
-  idLabel: {
+  screenLabel: {
+    textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   title: {
     lineHeight: 34,
+  },
+  idLabel: {
+    letterSpacing: 0.3,
   },
   confidenceBadge: {
     alignSelf: 'flex-start',

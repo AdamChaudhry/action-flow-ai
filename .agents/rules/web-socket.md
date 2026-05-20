@@ -1,6 +1,11 @@
+---
+trigger: always_on
+---
+
 # WebSocket Reference
 
-**WebSocket URL:** `ws://localhost:3000`
+**WebSocket URL:** `ws://localhost:3000`  
+**Protocol:** JSON messages over a plain WebSocket connection
 
 ---
 
@@ -10,11 +15,13 @@
 ws://localhost:3000
 ```
 
-No authentication required to open the connection.
+No authentication is required to open the connection. All events are scoped to a specific `jobId` — subscribe immediately after creating a job.
 
 ---
 
 ## Subscribing to a Job
+
+Send this message after opening the connection:
 
 ```json
 {
@@ -25,9 +32,13 @@ No authentication required to open the connection.
 }
 ```
 
+You will then receive all events emitted for that job, including events from both workflows.
+
 ---
 
 ## Message Envelope
+
+Every server-sent event follows this shape:
 
 ```json
 {
@@ -43,7 +54,7 @@ No authentication required to open the connection.
 
 ### `job_started`
 
-Emitted by **Node 1 — IngestInputNode** after validation passes.
+Emitted by **IngestInputNode** after input validation passes.
 
 ```json
 {
@@ -59,34 +70,36 @@ Emitted by **Node 1 — IngestInputNode** after validation passes.
 
 | Field | Type | Description |
 |---|---|---|
-| `inputType` | `string` | The content input type |
+| `inputType` | `string` | `text`, `url`, `pdf`, `image`, `dashboard_screenshot`, or `mixed` |
 | `inputSource` | `string \| undefined` | Where the content originated |
 
 ---
 
 ### `content_normalized`
 
-Emitted by **Node 2 — NormalizeContentNode** after cleaning the input.
+Emitted by **NormalizeContentNode** after the input is cleaned and any embedded URLs are detected.
 
 ```json
 {
   "type": "content_normalized",
   "jobId": "...",
   "payload": {
-    "normalizedLength": 1842
+    "normalizedLength": 1842,
+    "detectedUrlCount": 1
   }
 }
 ```
 
 | Field | Type | Description |
 |---|---|---|
-| `normalizedLength` | `number` | Character count of the cleaned content (not the raw text) |
+| `normalizedLength` | `number` | Character count of the cleaned content |
+| `detectedUrlCount` | `number` | Number of `http(s)://` URLs found in the raw input. When > 0, Gemini's URL context is enabled. |
 
 ---
 
 ### `node_started`
 
-Emitted by **Node 3 — ContentToActionNode** before the LLM call begins.
+Emitted before an LLM node or bridge node begins its work. May be emitted multiple times per job — once for `ContentToActionNode` and once for `EvaluationNode`.
 
 ```json
 {
@@ -98,21 +111,24 @@ Emitted by **Node 3 — ContentToActionNode** before the LLM call begins.
 }
 ```
 
+| Field | Possible values |
+|---|---|
+| `node` | `"ContentToActionNode"`, `"EvaluationNode"` |
+
 ---
 
-### `content_analyzed` ⭐
+### `content_analyzed`
 
-Emitted by **Node 3 — ContentToActionNode** after the single LLM call completes.  
-This is the most important event — it means all AI work is done.
+Emitted by **ContentToActionNode** after the Gemini analysis call completes.
 
 ```json
 {
   "type": "content_analyzed",
   "jobId": "...",
   "payload": {
-    "insightCount": 3,
-    "implicationCount": 3,
-    "actionCount": 4
+    "insightCount": 2,
+    "implicationCount": 2,
+    "actionCount": 2
   }
 }
 ```
@@ -125,58 +141,10 @@ This is the most important event — it means all AI work is done.
 
 ---
 
-### `actions_routed`
+### `awaiting_approval` ⭐ Workflow 1 Complete
 
-Emitted by **Node 4 — DecisionRouterNode** after splitting actions by approval requirement.
-
-```json
-{
-  "type": "actions_routed",
-  "jobId": "...",
-  "payload": {
-    "requiresApprovalCount": 2,
-    "autoExecuteCount": 2
-  }
-}
-```
-
-| Field | Type | Description |
-|---|---|---|
-| `requiresApprovalCount` | `number` | Actions that require human approval |
-| `autoExecuteCount` | `number` | Actions safe to execute automatically |
-
----
-
-### `simulation_ready`
-
-Emitted by **Node 5 — SimulationNode** with projected outcomes for auto-executable actions.
-
-```json
-{
-  "type": "simulation_ready",
-  "jobId": "...",
-  "payload": {
-    "simulations": [
-      {
-        "actionId": "action_1",
-        "actionTitle": "Create internal task",
-        "actionType": "assign_task",
-        "parameters": { "assignee": "engineering", "priority": "high" },
-        "projectedOutcome": "A task will be created and assigned to the responsible team for resolution.",
-        "estimatedRisk": "low",
-        "requiresHumanApproval": false
-      }
-    ]
-  }
-}
-```
-
----
-
-### `awaiting_approval`
-
-Emitted by **Node 6 — ApprovalOrExecutionNode** when one or more actions require human review.  
-Job status is set to `waiting_for_user`.
+Emitted by **ContentToActionNode** when pending approval records are created. Job status is set to `waiting_for_user`.  
+This is the terminal event of Workflow 1. After this fires, the client can display actions for user review.
 
 ```json
 {
@@ -185,12 +153,20 @@ Job status is set to `waiting_for_user`.
   "payload": {
     "pendingApprovals": [
       {
-        "actionId": "action_2",
-        "actionTitle": "Send churn alert to enterprise customers",
-        "actionType": "notify",
-        "parameters": { "channel": "email", "segment": "enterprise" },
+        "actionId": "action_1",
+        "actionTitle": "Escalate Checkout Failure to On-Call Engineering",
+        "actionType": "escalate",
+        "parameters": { "ownerTeam": "platform-engineering", "escalationLevel": "P1" },
         "status": "pending",
-        "requestedAt": "2026-05-17T04:01:20.000Z"
+        "requestedAt": "2026-05-21T00:00:00.000Z"
+      },
+      {
+        "actionId": "action_2",
+        "actionTitle": "Prepare Customer Communication Draft",
+        "actionType": "prepare_draft",
+        "parameters": { "draftType": "incident-notification" },
+        "status": "pending",
+        "requestedAt": "2026-05-21T00:00:00.000Z"
       }
     ]
   }
@@ -199,49 +175,91 @@ Job status is set to `waiting_for_user`.
 
 ---
 
-### `actions_queued`
+### `action_simulated` ⭐ Simulation Complete
 
-Emitted by **Node 6 — ApprovalOrExecutionNode** when auto-executable actions are queued.
+Emitted by **ExecutionNode** after a simulation is generated and persisted.
+
+Fired in two scenarios:
+1. **Automatic** — `EvaluationNode` selects the best candidate action and triggers Workflow 2 inline immediately after Workflow 1 completes.
+2. **Manual** — Client calls `POST /api/analysis-jobs/:jobId/actions/:actionId/simulate`.
 
 ```json
 {
-  "type": "actions_queued",
+  "type": "action_simulated",
   "jobId": "...",
   "payload": {
-    "executedActions": [
-      {
-        "actionId": "action_1",
-        "actionTitle": "Create engineering ticket",
-        "actionType": "create_ticket",
-        "status": "queued",
-        "executedAt": "2026-05-17T04:01:20.000Z"
-      }
-    ]
+    "simulation": {
+      "actionId": "action_1",
+      "actionTitle": "Escalate Checkout Failure to On-Call Engineering",
+      "actionType": "escalate",
+      "parameters": { "ownerTeam": "platform-engineering", "escalationLevel": "P1" },
+      "estimatedRisk": "high",
+      "requiresHumanApproval": false,
+      "beforeState": {
+        "checkoutErrorRate": "340% above baseline",
+        "engineeringEngagement": "none",
+        "resolutionStatus": "untracked"
+      },
+      "simulatedAfterState": {
+        "checkoutErrorRate": "under investigation",
+        "engineeringEngagement": "P1 on-call engaged",
+        "resolutionStatus": "in_progress"
+      },
+      "expectedChanges": [
+        {
+          "metric": "engineeringEngagement",
+          "before": "none",
+          "after": "P1 on-call engaged",
+          "direction": "increase",
+          "confidence": 0.95,
+          "rationale": "The escalation was sent to the on-call team, who confirmed receipt and began investigation."
+        }
+      ],
+      "projectedOutcome": "The P1 escalation was dispatched and the on-call engineering team was engaged immediately.",
+      "confidence": 0.88,
+      "assumptions": ["The on-call team had availability to respond within 5 minutes."],
+      "risks": ["Root cause identification may take longer than expected."],
+      "evidenceUsed": [
+        "Checkout error rate increased by 340% over the last 2 hours on mobile.",
+        "Revenue loss estimated at $40k/hour if checkout remains broken."
+      ]
+    }
   }
 }
 ```
 
+> **Note:** Simulation reports are written in **past tense**. They describe what was observed after the action was executed, not what will happen.
+
+| Field | Description |
+|---|---|
+| `beforeState` | State derived from the related insights and implications before the action |
+| `simulatedAfterState` | Projected state after the action was executed |
+| `expectedChanges[]` | Per-metric delta with direction, confidence, and rationale |
+| `projectedOutcome` | Short summary written in past tense |
+| `confidence` | Overall simulation confidence (0.0 – 1.0) |
+| `evidenceUsed` | Sourced from `insight.evidence` or `implication.businessImpact` |
+
 ---
 
-### `workflow_completed` ✅ Terminal
+### `outcome_updated`
 
-Emitted by **Node 7 — OutcomeStateNode** when all nodes finish. Job status → `completed`.
+Emitted by **OutcomeStateNode** after it rebuilds the outcome summary. Fired after every simulation (automatic or manual).
 
 ```json
 {
-  "type": "workflow_completed",
+  "type": "outcome_updated",
   "jobId": "...",
   "payload": {
     "outcome": {
-      "totalInsights": 3,
-      "totalImplications": 3,
-      "totalActions": 4,
-      "actionsRequiringApproval": 2,
-      "actionsAutoQueued": 2,
-      "highPriorityActions": ["action_2", "action_3"],
+      "totalInsights": 2,
+      "totalImplications": 2,
+      "totalActions": 2,
+      "actionsRequiringApproval": 1,
+      "actionsAutoQueued": 1,
+      "highPriorityActions": ["action_1"],
       "criticalInsights": ["insight_1"],
-      "summary": "Identified 3 insight(s) and 3 implication(s). Generated 4 recommended action(s). 2 action(s) require human approval before execution. 2 action(s) have been queued for automatic execution.",
-      "completedAt": "2026-05-17T04:01:45.000Z"
+      "summary": "Identified 2 insight(s) and 2 implication(s). Generated 2 recommended action(s). 1 action(s) are high or critical priority. 1 action(s) require human approval.",
+      "completedAt": "2026-05-21T00:00:00.000Z"
     }
   }
 }
@@ -249,9 +267,9 @@ Emitted by **Node 7 — OutcomeStateNode** when all nodes finish. Job status →
 
 ---
 
-### `workflow_failed` ✅ Terminal
+### `workflow_failed` ⚠ Terminal
 
-Emitted when the workflow terminates due to an error.
+Emitted when a workflow terminates due to an unrecoverable error. Job status is set to `failed`.
 
 ```json
 {
@@ -269,23 +287,87 @@ Emitted when the workflow terminates due to an error.
 | Error Code | Cause |
 |---|---|
 | `GRAPH_ERROR` | Unhandled exception in the graph engine |
+| `INSUFFICIENT_INPUT` | Input was too short, empty, unreadable, or lacked enough business-relevant information |
+
+For `INSUFFICIENT_INPUT`, the payload includes `requiredInformation`:
+
+```json
+{
+  "type": "workflow_failed",
+  "jobId": "...",
+  "payload": {
+    "error": {
+      "code": "INSUFFICIENT_INPUT",
+      "message": "The provided input does not contain enough business-relevant information to extract insights, implications, and recommended actions.",
+      "requiredInformation": [
+        "Provide business context, report text, dashboard values, customer issue details, or operational data."
+      ]
+    }
+  }
+}
+```
 
 ---
 
 ## Typical Event Sequence
 
-```
-subscribe_analysis (client → server)
+### Workflow 1 — Analysis + Auto-Simulation
 
-job_started            { inputType: "text", inputSource: "zendesk" }
-content_normalized     { normalizedLength: 1842 }
-node_started           { node: "ContentToActionNode" }
-content_analyzed       { insightCount: 3, implicationCount: 3, actionCount: 4 }
-actions_routed         { requiresApprovalCount: 2, autoExecuteCount: 2 }
-simulation_ready       { simulations: [...] }
-awaiting_approval      { pendingApprovals: [...] }   ← if any approvals needed
-actions_queued         { executedActions: [...] }     ← if any auto actions
-workflow_completed     { outcome: { ... } }
+```
+subscribe_analysis  (client → server)
+
+[Workflow 1 — Analysis]
+job_started             { inputType: "text" }
+content_normalized      { normalizedLength: 1842, detectedUrlCount: 0 }
+node_started            { node: "ContentToActionNode" }
+content_analyzed        { insightCount: 2, implicationCount: 2, actionCount: 2 }
+awaiting_approval       { pendingApprovals: [...] }      ← Workflow 1 complete
+
+[Workflow 2 — Auto-simulation triggered by EvaluationNode]
+node_started            { node: "EvaluationNode" }
+action_simulated        { simulation: { ... } }          ← highest-priority action auto-simulated
+outcome_updated         { outcome: { ... } }
+```
+
+### Workflow 2 — Manual Simulation
+
+Triggered by `POST /api/analysis-jobs/:jobId/actions/:actionId/simulate`:
+
+```
+action_simulated        { simulation: { ... } }
+outcome_updated         { outcome: { ... } }
+```
+
+---
+
+## Recommended Client Handling
+
+```
+1. POST /api/analysis-jobs
+   ← { jobId }
+
+2. Open WebSocket, subscribe to jobId
+
+3. On awaiting_approval:
+   → Display pending actions to the user.
+   → Do NOT show the simulate button for the auto-simulated action
+     (wait for the action_simulated event first).
+
+4. On action_simulated:
+   → Look up simulation.actionId.
+   → Display the before/after comparison for that action.
+   → Mark that action as "simulated" in the UI.
+
+5. On outcome_updated:
+   → Update the summary panel.
+
+6. For remaining actions the user wants to simulate:
+   POST /api/analysis-jobs/:jobId/actions/:actionId/simulate
+   ← HTTP: SimulationRecord (full simulation immediately)
+   ← WS:   action_simulated + outcome_updated
+
+7. GET /api/analysis-jobs/:jobId/simulations
+   ← list of all SimulationRecord documents
 ```
 
 ---
@@ -311,7 +393,10 @@ ws.onmessage = (event) => {
       break;
 
     case 'content_normalized':
-      console.log(`Content ready (${msg.payload.normalizedLength} chars)`);
+      console.log(
+        `Content ready (${msg.payload.normalizedLength} chars, ` +
+        `${msg.payload.detectedUrlCount} URL(s) detected)`
+      );
       break;
 
     case 'node_started':
@@ -319,32 +404,36 @@ ws.onmessage = (event) => {
       break;
 
     case 'content_analyzed':
-      console.log(`✓ AI complete — ${msg.payload.insightCount} insights, ${msg.payload.actionCount} actions`);
-      break;
-
-    case 'actions_routed':
-      console.log(`Routing: ${msg.payload.requiresApprovalCount} need approval, ${msg.payload.autoExecuteCount} auto`);
-      break;
-
-    case 'simulation_ready':
-      console.log('Simulations:', msg.payload.simulations);
+      console.log(
+        `✓ AI complete — ${msg.payload.insightCount} insights, ` +
+        `${msg.payload.actionCount} actions`
+      );
       break;
 
     case 'awaiting_approval':
-      console.warn('⏳ Human approval required:', msg.payload.pendingApprovals);
+      console.log('⏳ Actions ready for review:', msg.payload.pendingApprovals.length);
+      // Auto-simulation may follow immediately — wait for action_simulated
       break;
 
-    case 'actions_queued':
-      console.log('✓ Auto actions queued:', msg.payload.executedActions);
+    case 'action_simulated':
+      const sim = msg.payload.simulation;
+      console.log(
+        `✅ Simulation complete for "${sim.actionTitle}" ` +
+        `(confidence: ${sim.confidence}, risk: ${sim.estimatedRisk})`
+      );
+      // Display before/after comparison for sim.actionId
       break;
 
-    case 'workflow_completed':
-      console.log('✅ Done:', msg.payload.outcome.summary);
-      ws.close();
+    case 'outcome_updated':
+      console.log('📊 Outcome updated:', msg.payload.outcome.summary);
       break;
 
     case 'workflow_failed':
-      console.error('❌ Failed:', msg.payload.error.message);
+      const err = msg.payload.error;
+      console.error(`❌ Failed [${err.code}]: ${err.message}`);
+      if (err.requiredInformation) {
+        console.warn('Required:', err.requiredInformation);
+      }
       ws.close();
       break;
   }
