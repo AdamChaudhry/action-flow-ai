@@ -93,19 +93,13 @@ The app is organized into:
 
 ## Runtime Components
 
-| Component | Responsibility |
+| Screens | Responsibility |
 |---|---|
-| `App.tsx` | Root app container and navigation entry point |
-| `MainTabNavigator` | Hosts the two main tabs: Analyze and Actions |
-| `AnalyzeScreen` | Collects input and submits analysis jobs |
-| `InsightsScreen` | Displays generated insights |
-| `ImplicationsScreen` | Shows business implications |
-| `ActionsScreen` | Lists recommended actions and starts simulations |
-| `SimulationScreen` | Presents action simulation results |
-| `useSubmitAnalysis` | Handles content submission and job creation |
-| `useAnalysisJob` | Tracks analysis status and progress |
-| `useRecommendedActions` | Fetches action recommendations |
-| `useActionSimulation` | Fetches simulation results |
+| `Analyze Screen` | Collects input and submits analysis jobs |
+| `Insights Screen` | Displays generated insights |
+| `Implication sScreen` | Shows business implications |
+| `Actions Screen` | Lists recommended actions and starts simulations |
+| `Simulation Screen` | Presents action simulation results |
 
 ---
 
@@ -146,19 +140,3 @@ This project uses Antigravity guidance to keep the mobile app aligned with archi
 |---|---|
 | `react-native-mobile-developer.md` | Guides implementation of production-grade React Native features, performance, and mobile UX. |
 
----
-
-## Handover Summary
-
-This mobile app is a content-to-action tool for business users. The main mental model is:
-
-```text
-Content submission
-  -> analysis job
-  -> insights
-  -> implications
-  -> recommended actions
-  -> simulation
-```
-
-It is built to make decision support accessible on mobile while preserving the rule that actions remain reviewable before execution.
