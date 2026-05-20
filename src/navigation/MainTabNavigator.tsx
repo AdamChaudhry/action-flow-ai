@@ -7,7 +7,7 @@ import type { AnalyzeStackParamList } from './AnalyzeStackNavigator';
 
 export type MainTabParamList = {
   Analyze: NavigatorScreenParams<AnalyzeStackParamList> | undefined;
-  Actions: { jobId?: string } | undefined;
+  Actions: { jobId?: string; implicationId?: string } | undefined;
 };
 
 const Tab = createBottomTabNavigator<MainTabParamList>();

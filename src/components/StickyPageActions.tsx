@@ -1,76 +1,44 @@
 import React from 'react';
-import { Pressable, SafeAreaView, StyleSheet } from 'react-native';
-import { ArrowLeft, ArrowRight } from 'lucide-react-native';
+import { ActivityIndicator, Pressable, SafeAreaView, StyleSheet } from 'react-native';
+import { ArrowRight } from 'lucide-react-native';
 import { colors } from '../theme/colors';
 import { rounded, spacing } from '../theme/spacing';
 import { Typography } from './Typography';
 
 interface StickyPageActionsProps {
-  previousTitle: string;
   nextTitle: string;
-  onPrevious?: () => void;
   onNext?: () => void;
   isNextDisabled?: boolean;
-  isPreviousDisabled?: boolean;
+  isNextBusy?: boolean;
+  busyNextTitle?: string;
   nextAccessibilityLabel?: string;
-  previousAccessibilityLabel?: string;
 }
 
 export const STICKY_PAGE_ACTIONS_HEIGHT = 104;
 
 export const StickyPageActions: React.FC<StickyPageActionsProps> = ({
-  previousTitle,
   nextTitle,
-  onPrevious,
   onNext,
   isNextDisabled = false,
-  isPreviousDisabled = false,
+  isNextBusy = false,
+  busyNextTitle,
   nextAccessibilityLabel,
-  previousAccessibilityLabel,
 }) => {
-  const previousDisabled = isPreviousDisabled || !onPrevious;
   const nextDisabled = isNextDisabled || !onNext;
-  const showPrevious = Boolean(onPrevious);
   const showNext = Boolean(onNext);
+  const label = isNextBusy ? busyNextTitle ?? nextTitle : nextTitle;
 
-  if (!showPrevious && !showNext) {
+  if (!showNext) {
     return null;
   }
 
   return (
     <SafeAreaView style={styles.wrapper}>
-      {showPrevious && (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={previousAccessibilityLabel ?? `Previous page: ${previousTitle}`}
-          accessibilityState={{ disabled: previousDisabled }}
-          disabled={previousDisabled}
-          onPress={onPrevious}
-          style={({ pressed }) => [
-            styles.button,
-            styles.secondaryButton,
-            previousDisabled && styles.disabledButton,
-            pressed && !previousDisabled && styles.pressedButton,
-          ]}
-        >
-          <ArrowLeft size={16} color={previousDisabled ? colors.textTertiary : colors.textPrimary} />
-          <Typography
-            variant="labelMd"
-            color={previousDisabled ? colors.textTertiary : colors.textPrimary}
-            numberOfLines={1}
-            ellipsizeMode="tail"
-            style={styles.buttonLabel}
-          >
-            {previousTitle}
-          </Typography>
-        </Pressable>
-      )}
-
       {showNext && (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={nextAccessibilityLabel ?? `Next page: ${nextTitle}`}
-          accessibilityState={{ disabled: nextDisabled }}
+          accessibilityLabel={nextAccessibilityLabel ?? label}
+          accessibilityState={{ disabled: nextDisabled, busy: isNextBusy }}
           disabled={nextDisabled}
           onPress={onNext}
           style={({ pressed }) => [
@@ -87,9 +55,13 @@ export const StickyPageActions: React.FC<StickyPageActionsProps> = ({
             ellipsizeMode="tail"
             style={styles.buttonLabel}
           >
-            {nextTitle}
+            {label}
           </Typography>
-          <ArrowRight size={16} color={nextDisabled ? colors.textTertiary : colors.primaryInverse} />
+          {isNextBusy ? (
+            <ActivityIndicator size="small" color={colors.primaryInverse} />
+          ) : (
+            <ArrowRight size={16} color={nextDisabled ? colors.textTertiary : colors.primaryInverse} />
+          )}
         </Pressable>
       )}
     </SafeAreaView>
@@ -121,11 +93,6 @@ const styles = StyleSheet.create({
     gap: spacing.stackSm,
     borderRadius: rounded.md,
     paddingHorizontal: spacing.stackMd,
-  },
-  secondaryButton: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
   },
   primaryButton: {
     backgroundColor: colors.primary,

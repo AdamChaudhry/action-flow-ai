@@ -3,19 +3,20 @@ import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import type { Implication } from '../../types/analysis';
 import { colors } from '../../theme/colors';
 import { spacing } from '../../theme/spacing';
-import { STICKY_PAGE_ACTIONS_HEIGHT } from '../StickyPageActions';
 import { ImplicationsListSection } from './ImplicationsListSection';
 
 interface ImplicationsContentProps {
   implications: Implication[];
   isRefreshing: boolean;
   onRefresh: () => void;
+  onViewActions: (implicationId: string) => void;
 }
 
 export const ImplicationsContent: React.FC<ImplicationsContentProps> = ({
   implications,
   isRefreshing,
   onRefresh,
+  onViewActions,
 }) => (
   <ScrollView
     style={styles.container}
@@ -29,7 +30,7 @@ export const ImplicationsContent: React.FC<ImplicationsContentProps> = ({
       />
     }
   >
-    <ImplicationsListSection implications={implications} />
+    <ImplicationsListSection implications={implications} onViewActions={onViewActions} />
     <View style={styles.bottomSpacer} />
   </ScrollView>
 );
@@ -43,6 +44,6 @@ const styles = StyleSheet.create({
     gap: spacing.stackMd,
   },
   bottomSpacer: {
-    height: STICKY_PAGE_ACTIONS_HEIGHT,
+    height: spacing.stackLg,
   },
 });

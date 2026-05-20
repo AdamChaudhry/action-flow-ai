@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, View } from 'react-native';
+import { Button } from '../Button';
 import { Typography } from '../Typography';
 import { ConfidenceBadge } from './ConfidenceBadge';
 import { colors } from '../../theme/colors';
@@ -9,13 +10,17 @@ import { toDisplayText, toDisplayTextArray } from '../../utils/displayText';
 
 interface FeaturedInsightCardProps {
   insight: Insight;
+  onViewImplications: (insightId: string) => void;
 }
 
 /**
  * Large, prominent insight card with left blue accent border.
  * Shows confidence, category, importance badges, evidence, and explanation.
  */
-export const FeaturedInsightCard: React.FC<FeaturedInsightCardProps> = ({ insight }) => {
+export const FeaturedInsightCard: React.FC<FeaturedInsightCardProps> = ({
+  insight,
+  onViewImplications,
+}) => {
   const opacity = useRef(new Animated.Value(1)).current;
   const translateY = useRef(new Animated.Value(0)).current;
   const evidenceItems = toDisplayTextArray(insight.evidence);
@@ -85,6 +90,15 @@ export const FeaturedInsightCard: React.FC<FeaturedInsightCardProps> = ({ insigh
             ))}
           </>
         )}
+
+        {/* View Implications CTA */}
+        <View style={styles.footer}>
+          <Button
+            title="View Implications"
+            onPress={() => onViewImplications(insight.id)}
+            variant="secondary"
+          />
+        </View>
       </View>
     </Animated.View>
   );
@@ -141,5 +155,11 @@ const styles = StyleSheet.create({
   },
   evidenceText: {
     fontStyle: 'italic',
+  },
+  footer: {
+    marginTop: spacing.stackMd,
+    paddingTop: spacing.stackSm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
   },
 });

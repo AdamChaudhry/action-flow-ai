@@ -7,7 +7,6 @@ import {
   InsightsFeedbackState,
   InsightsLoadingState,
 } from '../components/insights/InsightsStateView';
-import { StickyPageActions } from '../components/StickyPageActions';
 import { colors } from '../theme/colors';
 import { useInsights } from '../hooks/useInsights';
 import type { AnalyzeStackParamList } from '../navigation/AnalyzeStackNavigator';
@@ -25,8 +24,8 @@ export const InsightsScreen: React.FC = () => {
 
   const { insights, isLoading, error, refetch } = useInsights(jobId);
 
-  const navigateToImplications = useCallback(() => {
-    navigation.navigate('Implications', { jobId });
+  const navigateToImplications = useCallback((insightId: string) => {
+    navigation.navigate('Implications', { jobId, insightId });
   }, [navigation, jobId]);
 
   if (isLoading && insights.length === 0) {
@@ -59,12 +58,7 @@ export const InsightsScreen: React.FC = () => {
         insights={insights}
         isRefreshing={isLoading}
         onRefresh={refetch}
-      />
-      <StickyPageActions
-        previousTitle="Analyze"
-        nextTitle="Implications"
-        onPrevious={() => navigation.navigate('AnalyzeInput')}
-        onNext={navigateToImplications}
+        onViewImplications={navigateToImplications}
       />
     </View>
   );

@@ -7,16 +7,18 @@ import { ImplicationsHeader } from './ImplicationsHeader';
 
 interface ImplicationsListSectionProps {
   implications: Implication[];
+  onViewActions: (implicationId: string) => void;
 }
 
 export const ImplicationsListSection: React.FC<ImplicationsListSectionProps> = ({
   implications,
+  onViewActions,
 }) => (
   <>
     <ImplicationsHeader count={implications.length} />
     <View style={styles.list}>
       {implications.map(implication => (
-        <ImplicationCard key={implication.id} implication={implication} />
+        <ImplicationCard key={implication.id} implication={implication} onViewActions={onViewActions} />
       ))}
     </View>
   </>

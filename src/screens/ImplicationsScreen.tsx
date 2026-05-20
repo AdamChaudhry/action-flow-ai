@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
@@ -8,7 +8,6 @@ import {
   ImplicationsFeedbackState,
   ImplicationsLoadingState,
 } from '../components/implications/ImplicationsStateView';
-import { StickyPageActions } from '../components/StickyPageActions';
 import { colors } from '../theme/colors';
 import { useImplications } from '../hooks/useImplications';
 import type { AnalyzeStackParamList } from '../navigation/AnalyzeStackNavigator';
@@ -28,15 +27,23 @@ export const ImplicationsScreen: React.FC = () => {
 
   const { implications, isLoading, error, refetch } = useImplications(jobId);
 
-  const navigateToActions = useCallback(() => {
-    navigation.getParent<RootTabNavigationProp>()?.navigate('Actions', { jobId });
+  const navigateToActions = useCallback((implicationId: string) => {
+    navigation.getParent<RootTabNavigationProp>()?.navigate('Actions', {
+      screen: 'ActionsList',
+      params: { jobId, implicationId },
+    } as any);
   }, [navigation, jobId]);
 
-  if (isLoading && implications.length === 0) {
+  const filteredImplications = useMemo(() => {
+    if (!route.params?.insightId) return implications;
+    return implications.filter(imp => imp.relatedInsightIds.includes(route.params!.insightId!));
+  }, [implications, route.params?.insightId]);
+
+  if (isLoading && filteredImplications.length === 0) {
     return <ImplicationsLoadingState />;
   }
 
-  if (error && implications.length === 0) {
+  if (error && filteredImplications.length === 0) {
     return (
       <ImplicationsFeedbackState
         title="Something went wrong"
@@ -46,7 +53,7 @@ export const ImplicationsScreen: React.FC = () => {
     );
   }
 
-  if (!isLoading && implications.length === 0) {
+  if (!isLoading && filteredImplications.length === 0) {
     return (
       <ImplicationsFeedbackState
         title="No implications yet"
@@ -59,15 +66,10 @@ export const ImplicationsScreen: React.FC = () => {
   return (
     <View style={styles.outerContainer}>
       <ImplicationsContent
-        implications={implications}
+        implications={filteredImplications}
         isRefreshing={isLoading}
         onRefresh={refetch}
-      />
-      <StickyPageActions
-        previousTitle="Insights"
-        nextTitle="Actions"
-        onPrevious={navigation.goBack}
-        onNext={navigateToActions}
+        onViewActions={navigateToActions}
       />
     </View>
   );

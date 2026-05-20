@@ -7,7 +7,7 @@ import { ImplicationsScreen } from '../screens/ImplicationsScreen';
 export type AnalyzeStackParamList = {
   AnalyzeInput: { resetToken?: number } | undefined;
   Insights: { jobId?: string };
-  Implications: { jobId?: string };
+  Implications: { jobId?: string; insightId?: string };
 };
 
 const Stack = createNativeStackNavigator<AnalyzeStackParamList>();

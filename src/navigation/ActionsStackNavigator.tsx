@@ -7,7 +7,7 @@ import { ActionsJobProvider } from './ActionsJobContext';
 import type { MainTabParamList } from './MainTabNavigator';
 
 export type ActionsStackParamList = {
-  ActionsList: { jobId?: string } | undefined;
+  ActionsList: { jobId?: string; implicationId?: string } | undefined;
   SimulationResult: { jobId: string; simulationId: string };
 };
 
@@ -22,11 +22,16 @@ const Stack = createNativeStackNavigator<ActionsStackParamList>();
 export const ActionsStackNavigator: React.FC = () => {
   const route = useRoute<RouteProp<MainTabParamList, 'Actions'>>();
   const jobId = route.params?.jobId;
+  const implicationId = route.params?.implicationId;
 
   return (
     <ActionsJobProvider value={jobId}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="ActionsList" component={ActionsScreen} />
+        <Stack.Screen
+          name="ActionsList"
+          component={ActionsScreen}
+          initialParams={{ jobId, implicationId }}
+        />
         <Stack.Screen name="SimulationResult" component={SimulationScreen} />
       </Stack.Navigator>
     </ActionsJobProvider>

@@ -1,7 +1,6 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { RouteProp, useRoute, useNavigation } from '@react-navigation/native';
-import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ActionsContent } from '../components/actions/ActionsContent';
 import {
@@ -14,27 +13,24 @@ import { useRecommendedActions } from '../hooks/useRecommendedActions';
 import { useSubmitSimulation } from '../hooks/useSubmitSimulation';
 import { useActionsJobId } from '../navigation/ActionsJobContext';
 import type { ActionsStackParamList } from '../navigation/ActionsStackNavigator';
-import type { MainTabParamList } from '../navigation/MainTabNavigator';
 
 type ActionsNavProp = NativeStackNavigationProp<ActionsStackParamList, 'ActionsList'>;
 type ActionsRouteProp = RouteProp<ActionsStackParamList, 'ActionsList'>;
-type RootTabNavigationProp = BottomTabNavigationProp<MainTabParamList>;
 
 export const ActionsScreen: React.FC = () => {
   const route      = useRoute<ActionsRouteProp>();
   const navigation = useNavigation<ActionsNavProp>();
   const contextJobId = useActionsJobId();
   const jobId = contextJobId ?? route.params?.jobId;
+  const implicationId = route.params?.implicationId;
 
   const { actions, isLoading, error, refetch } = useRecommendedActions(jobId);
   const { triggerSimulation, isSubmitting }     = useSubmitSimulation();
 
-  const navigateToImplications = useCallback(() => {
-    navigation.getParent<RootTabNavigationProp>()?.navigate('Analyze', {
-      screen: 'Implications',
-      params: { jobId },
-    });
-  }, [jobId, navigation]);
+  const filteredActions = useMemo(() => {
+    if (!implicationId) return actions;
+    return actions.filter(act => act.relatedImplicationIds.includes(implicationId));
+  }, [actions, implicationId]);
 
   const handleSimulate = useCallback(async (actionId: string) => {
     if (!jobId) { return; }
@@ -44,11 +40,11 @@ export const ActionsScreen: React.FC = () => {
     }
   }, [jobId, triggerSimulation, navigation]);
 
-  if (isLoading && actions.length === 0) {
+  if (isLoading && filteredActions.length === 0) {
     return <ActionsLoadingState />;
   }
 
-  if (error && actions.length === 0) {
+  if (error && filteredActions.length === 0) {
     return (
       <ActionsFeedbackState
         title="Something went wrong"
@@ -58,7 +54,7 @@ export const ActionsScreen: React.FC = () => {
     );
   }
 
-  if (!jobId || (!isLoading && actions.length === 0)) {
+  if (!jobId || (!isLoading && filteredActions.length === 0)) {
     return (
       <ActionsFeedbackState
         title="No actions yet"
@@ -70,16 +66,14 @@ export const ActionsScreen: React.FC = () => {
   return (
     <View style={styles.outerContainer}>
       <ActionsContent
-        actions={actions}
+        actions={filteredActions}
         isRefreshing={isLoading}
         onRefresh={refetch}
         onSimulate={handleSimulate}
         isSimulating={isSubmitting}
       />
       <StickyPageActions
-        previousTitle="Implications"
         nextTitle="Simulation"
-        onPrevious={navigateToImplications}
         isNextDisabled
       />
     </View>

@@ -12,6 +12,21 @@ import { colors } from './src/theme/colors';
 const navigationRef = createNavigationContainerRef<MainTabParamList>();
 
 function App() {
+  const [canGoBack, setCanGoBack] = React.useState(false);
+
+  const syncHeaderBackState = React.useCallback(() => {
+    if (!navigationRef.isReady()) {
+      setCanGoBack(false);
+      return;
+    }
+
+    const currentRouteName = navigationRef.getCurrentRoute()?.name as string | undefined;
+    const hiddenBackRoutes = ['Insights', 'SimulationResult'];
+    setCanGoBack(
+      navigationRef.canGoBack() && !hiddenBackRoutes.includes(currentRouteName ?? ''),
+    );
+  }, []);
+
   const handleStartAnalysis = React.useCallback(() => {
     if (!navigationRef.isReady()) {
       return;
@@ -32,12 +47,26 @@ function App() {
     });
   }, []);
 
+  const handleBack = React.useCallback(() => {
+    if (navigationRef.isReady() && navigationRef.canGoBack()) {
+      navigationRef.goBack();
+    }
+  }, []);
+
   return (
     <SafeAreaProvider>
-      <NavigationContainer ref={navigationRef}>
+      <NavigationContainer
+        ref={navigationRef}
+        onReady={syncHeaderBackState}
+        onStateChange={syncHeaderBackState}
+      >
         <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
         <View style={styles.container}>
-          <Header onStartAnalysis={handleStartAnalysis} />
+          <Header
+            onStartAnalysis={handleStartAnalysis}
+            onBack={handleBack}
+            canGoBack={canGoBack}
+          />
           <MainTabNavigator />
         </View>
       </NavigationContainer>

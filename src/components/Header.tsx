@@ -4,18 +4,35 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Typography } from './Typography';
 import { colors } from '../theme/colors';
 import { rounded, spacing } from '../theme/spacing';
-import { PlusCircle } from 'lucide-react-native';
+import { ArrowLeft, PlusCircle } from 'lucide-react-native';
 
 interface HeaderProps {
   onStartAnalysis: () => void;
+  onBack?: () => void;
+  canGoBack?: boolean;
 }
 
-export const Header: React.FC<HeaderProps> = ({ onStartAnalysis }) => {
+export const Header: React.FC<HeaderProps> = ({
+  onStartAnalysis,
+  onBack,
+  canGoBack = false,
+}) => {
   const insets = useSafeAreaInsets();
 
   return (
     <View style={[styles.container, { paddingTop: Math.max(insets.top, spacing.stackMd) }]}>
       <View style={styles.left}>
+        {canGoBack && (
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+            style={styles.backButton}
+            activeOpacity={0.75}
+            onPress={onBack}
+          >
+            <ArrowLeft size={20} color={colors.textPrimary} />
+          </TouchableOpacity>
+        )}
         <Image
           source={require('../assets/actionflow-logo.png')}
           style={styles.logo}
@@ -53,6 +70,19 @@ const styles = StyleSheet.create({
   left: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
+    minWidth: 0,
+  },
+  backButton: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.stackSm,
+    borderRadius: rounded.full,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   logo: {
     width: 28,

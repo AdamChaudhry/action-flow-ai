@@ -108,11 +108,11 @@ export const AnalyzeScreen: React.FC = () => {
       </ScrollView>
 
       <StickyPageActions
-        previousTitle="Start"
         nextTitle="Start"
         onNext={handleSubmit}
-        isPreviousDisabled
         isNextDisabled={isSubmitting || isAnalyzing}
+        isNextBusy={isSubmitting || isAnalyzing}
+        busyNextTitle="Starting..."
       />
     </View>
   );

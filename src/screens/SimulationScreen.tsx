@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -28,10 +28,6 @@ export const SimulationScreen: React.FC = () => {
     simulationId,
   );
 
-  const goBack = useCallback(() => {
-    navigation.goBack();
-  }, [navigation]);
-
   if (isLoading) {
     return <SimulationLoadingState />;
   }
@@ -40,7 +36,7 @@ export const SimulationScreen: React.FC = () => {
     return (
       <SimulationErrorState
         message={error ?? 'The simulation result could not be found.'}
-        onBack={goBack}
+        onBack={navigation.goBack}
       />
     );
   }
@@ -49,9 +45,7 @@ export const SimulationScreen: React.FC = () => {
     <View style={styles.outer}>
       <SimulationContent simulation={simulation} />
       <StickyPageActions
-        previousTitle="Actions"
         nextTitle="Complete"
-        onPrevious={goBack}
         isNextDisabled
       />
     </View>

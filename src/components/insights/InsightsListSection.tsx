@@ -12,10 +12,12 @@ import { InsightsHeader } from './InsightsHeader';
 
 interface InsightsListSectionProps {
   insights: Insight[];
+  onViewImplications: (insightId: string) => void;
 }
 
 export const InsightsListSection: React.FC<InsightsListSectionProps> = ({
   insights,
+  onViewImplications,
 }) => {
   const [featuredInsightId, setFeaturedInsightId] = useState<string | null>(
     insights[0]?.id ?? null,
@@ -66,7 +68,11 @@ export const InsightsListSection: React.FC<InsightsListSectionProps> = ({
       <View style={styles.insightsList}>
         {insights.map(insight =>
           insight.id === featuredInsightId ? (
-            <FeaturedInsightCard key={insight.id} insight={insight} />
+            <FeaturedInsightCard
+              key={insight.id}
+              insight={insight}
+              onViewImplications={onViewImplications}
+            />
           ) : (
             <CompactInsightCard
               key={insight.id}

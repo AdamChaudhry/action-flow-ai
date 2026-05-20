@@ -3,19 +3,20 @@ import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import type { Insight } from '../../types/analysis';
 import { colors } from '../../theme/colors';
 import { spacing } from '../../theme/spacing';
-import { STICKY_PAGE_ACTIONS_HEIGHT } from '../StickyPageActions';
 import { InsightsListSection } from './InsightsListSection';
 
 interface InsightsContentProps {
   insights: Insight[];
   isRefreshing: boolean;
   onRefresh: () => void;
+  onViewImplications: (insightId: string) => void;
 }
 
 export const InsightsContent: React.FC<InsightsContentProps> = ({
   insights,
   isRefreshing,
   onRefresh,
+  onViewImplications,
 }) => (
   <ScrollView
     style={styles.container}
@@ -29,7 +30,7 @@ export const InsightsContent: React.FC<InsightsContentProps> = ({
       />
     }
   >
-    <InsightsListSection insights={insights} />
+    <InsightsListSection insights={insights} onViewImplications={onViewImplications} />
     <View style={styles.bottomSpacer} />
   </ScrollView>
 );
@@ -43,6 +44,6 @@ const styles = StyleSheet.create({
     gap: spacing.stackMd,
   },
   bottomSpacer: {
-    height: STICKY_PAGE_ACTIONS_HEIGHT,
+    height: spacing.stackLg,
   },
 });

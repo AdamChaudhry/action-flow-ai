@@ -6,6 +6,7 @@ import {
   Layers,
   type LucideIcon,
 } from 'lucide-react-native';
+import { Button } from '../Button';
 import { Typography } from '../Typography';
 import { colors } from '../../theme/colors';
 import { spacing, rounded } from '../../theme/spacing';
@@ -96,13 +97,17 @@ const areaStyles = StyleSheet.create({
 
 interface ImplicationCardProps {
   implication: Implication;
+  onViewActions: (implicationId: string) => void;
 }
 
 /**
  * Card for a single business implication using the real API shape:
  *   severity, urgency, businessImpact, affectedAreas, relatedInsightIds
  */
-export const ImplicationCard: React.FC<ImplicationCardProps> = ({ implication }) => {
+export const ImplicationCard: React.FC<ImplicationCardProps> = ({
+  implication,
+  onViewActions,
+}) => {
   const token = SEVERITY_TOKEN[implication.severity];
   const { Icon } = token;
   const affectedAreas = toDisplayTextArray(implication.affectedAreas);
@@ -145,6 +150,14 @@ export const ImplicationCard: React.FC<ImplicationCardProps> = ({ implication })
             {relatedInsightIds.length} insight{relatedInsightIds.length > 1 ? 's' : ''}
           </Typography>
         )}
+      </View>
+
+      <View style={styles.actionFooter}>
+        <Button
+          title="View Actions"
+          onPress={() => onViewActions(implication.id)}
+          variant="secondary"
+        />
       </View>
     </View>
   );
@@ -201,5 +214,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginTop: spacing.stackSm,
+  },
+  actionFooter: {
+    marginTop: spacing.stackMd,
+    paddingTop: spacing.stackSm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
   },
 });
